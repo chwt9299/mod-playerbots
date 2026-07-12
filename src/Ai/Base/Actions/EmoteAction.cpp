@@ -205,6 +205,8 @@ static std::string ReplacePlaceholders(std::string const& tmpl, std::string cons
 
 bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
 {
+    LOG_ERROR("playerbots", "ReceiveEmote called: source={} emote={} verbal={}",
+        source ? source->GetName() : "null", emote, verbal);
     uint32 emoteId = 0;
     uint32 textEmote = 0;
     std::string chosen;
