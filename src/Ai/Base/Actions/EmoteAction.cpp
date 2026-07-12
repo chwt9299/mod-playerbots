@@ -435,7 +435,7 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
              emote == TEXT_EMOTE_TIRED || emote == TEXT_EMOTE_YAWN || emote == TEXT_EMOTE_COUGH ||
              emote == TEXT_EMOTE_DROOL || emote == TEXT_EMOTE_SPIT || emote == TEXT_EMOTE_LICK ||
              emote == TEXT_EMOTE_BREATH || emote == TEXT_EMOTE_BOUNCE || emote == TEXT_EMOTE_BARK ||
-             emote == TEXT_EMOTE_SHOE || emote == TEXT_EMOTE_BEG || emote == TEXT_EMOTE_GROVEL ||
+             emote == TEXT_EMOTE_BEG || emote == TEXT_EMOTE_GROVEL ||
              emote == TEXT_EMOTE_PLEAD || emote == TEXT_EMOTE_BITE || emote == TEXT_EMOTE_POKE ||
              emote == TEXT_EMOTE_SCRATCH || emote == TEXT_EMOTE_BORED || emote == TEXT_EMOTE_BLINK ||
              emote == TEXT_EMOTE_CRACK || emote == TEXT_EMOTE_POINT || emote == TEXT_EMOTE_RAISE ||
@@ -514,7 +514,7 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
         else
             bot->Say(chosen, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
 
-        LOG_INFO("playerbots", "bot={} source={} emote={} type=text text="{}"",
+        LOG_INFO("playerbots", "bot={} source={} emote={} type=text text=\"{}\"",
             EscapeFmt(bot->GetName()), EscapeFmt(srcName), emote, EscapeFmt(chosen));
     }
 
