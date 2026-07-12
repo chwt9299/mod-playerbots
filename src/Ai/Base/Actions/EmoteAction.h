@@ -32,6 +32,10 @@ protected:
     void InitEmotes();
     static std::map<std::string, uint32> emotes;
     static std::map<std::string, uint32> textEmotes;
+
+    bool m_lastInCombat = false;
+    bool m_killedRecently = false;
+    time_t m_lastActionTime = 0;
 };
 
 class EmoteAction : public EmoteActionBase, public Qualified

@@ -6,6 +6,8 @@
 
 #include "EmoteAction.h"
 
+#include <algorithm>
+
 #include "Event.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
@@ -143,491 +145,377 @@ Unit* EmoteActionBase::GetTarget()
     return target;
 }
 
+// 辅助函数：从 | 分隔的字符串池中随机选取一项
+static std::string PickRandom(std::string const& pool)
+{
+    if (pool.empty()) return "";
+    std::vector<std::string> parts;
+    size_t start = 0;
+    size_t end = pool.find('|');
+    while (end != std::string::npos)
+    {
+        parts.push_back(pool.substr(start, end - start));
+        start = end + 1;
+        end = pool.find('|', start);
+    }
+    parts.push_back(pool.substr(start));
+    if (parts.empty()) return "";
+    return parts[urand(0, parts.size() - 1)];
+}
+
+// 辅助函数：转义花括号（避免 LOG_INFO 格式化崩溃）
+static std::string EscapeFmt(std::string const& s)
+{
+    std::string result;
+    result.reserve(s.size() + 4);
+    for (char c : s)
+    {
+        if (c == '{' || c == '}') result += c;
+        result += c;
+    }
+    return result;
+}
+
+// 辅助函数：替换占位符
+static std::string ReplacePlaceholders(std::string const& tmpl, std::string const& targetName, uint32 zoneId, std::string const& zoneName)
+{
+    std::string result = tmpl;
+    // {target} -> 目标玩家名字
+    if (!targetName.empty())
+    {
+        size_t pos = 0;
+        while ((pos = result.find("{target}", pos)) != std::string::npos)
+        {
+            result.replace(pos, 8, targetName);
+            pos += targetName.size();
+        }
+    }
+    // {zone} -> 区域名字
+    if (!zoneName.empty())
+    {
+        size_t pos = 0;
+        while ((pos = result.find("{zone}", pos)) != std::string::npos)
+        {
+            result.replace(pos, 6, zoneName);
+            pos += zoneName.size();
+        }
+    }
+    return result;
+}
+
 bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
 {
     uint32 emoteId = 0;
     uint32 textEmote = 0;
-    std::string emoteText;
-    std::string emoteYell;
+    std::string chosen;
+    bool isYell = false;
 
-    switch (emote)
+    // === 特殊命令：stay ===
+    if (emote == 325)
     {
-        case TEXT_EMOTE_BONK:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            break;
-        case TEXT_EMOTE_SALUTE:
-            emoteId = EMOTE_ONESHOT_SALUTE;
-            textEmote = TEXT_EMOTE_SALUTE;
-            break;
-        case 325:
-            if (botAI->GetMaster() == source)
-            {
-                botAI->ChangeStrategy("-follow,+stay", BOT_STATE_NON_COMBAT);
-                botAI->TellMasterNoFacing("Fine.. I'll stay right here..");
-            }
-            break;
-        case TEXT_EMOTE_BECKON:
-        case 324:
-            if (botAI->GetMaster() == source)
-            {
-                botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
-                botAI->TellMasterNoFacing("Wherever you go, I'll follow..");
-            }
-            break;
-        case TEXT_EMOTE_WAVE:
-        case TEXT_EMOTE_GREET:
-        case TEXT_EMOTE_HAIL:
-        case TEXT_EMOTE_HELLO:
-        case TEXT_EMOTE_WELCOME:
-        case TEXT_EMOTE_INTRODUCE:
-            emoteText = "Hey there!";
-            emoteId = EMOTE_ONESHOT_WAVE;
-            textEmote = TEXT_EMOTE_HELLO;
-            break;
-        case TEXT_EMOTE_DANCE:
-            emoteText = "Shake what your mama gave you!";
-            emoteId = EMOTE_ONESHOT_DANCE;
-            textEmote = TEXT_EMOTE_DANCE;
-            break;
-        case TEXT_EMOTE_FLIRT:
-        case TEXT_EMOTE_KISS:
-        case TEXT_EMOTE_HUG:
-        case TEXT_EMOTE_BLUSH:
-        case TEXT_EMOTE_SMILE:
-        case TEXT_EMOTE_LOVE:
-            // case TEXT_EMOTE_HOLDHAND:
-            emoteText = "Awwwww...";
-            emoteId = EMOTE_ONESHOT_SHY;
-            textEmote = TEXT_EMOTE_SHY;
-            break;
-        case TEXT_EMOTE_FLEX:
-            emoteText = "Hercules! Hercules!";
-            emoteId = EMOTE_ONESHOT_APPLAUD;
-            textEmote = TEXT_EMOTE_APPLAUD;
-            break;
-        case TEXT_EMOTE_ANGRY:
-            // case TEXT_EMOTE_FACEPALM:
-        case TEXT_EMOTE_GLARE:
-        case TEXT_EMOTE_BLAME:
-            // case TEXT_EMOTE_FAIL:
-            // case TEXT_EMOTE_REGRET:
-            // case TEXT_EMOTE_SCOLD:
-            // case TEXT_EMOTE_CROSSARMS:
-            emoteText = "Did I do thaaaaat?";
-            emoteId = EMOTE_ONESHOT_QUESTION;
-            textEmote = TEXT_EMOTE_SHRUG;
-            break;
-        case TEXT_EMOTE_FART:
-        case TEXT_EMOTE_BURP:
-        case TEXT_EMOTE_GASP:
-        case TEXT_EMOTE_NOSEPICK:
-        case TEXT_EMOTE_SNIFF:
-        case TEXT_EMOTE_STINK:
-            emoteText = "Wasn't me! Just sayin'..";
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            break;
-        case TEXT_EMOTE_JOKE:
-            emoteId = EMOTE_ONESHOT_LAUGH;
-            textEmote = TEXT_EMOTE_LAUGH;
-            emoteText = "Oh.. was I not supposed to laugh so soon?";
-            break;
-        case TEXT_EMOTE_CHICKEN:
-            emoteText = "We'll see who's chicken soon enough!";
-            emoteId = EMOTE_ONESHOT_RUDE;
-            textEmote = TEXT_EMOTE_RUDE;
-            break;
-        case TEXT_EMOTE_APOLOGIZE:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_APOLOGIZE;
-            emoteText = "You damn right you're sorry!";
-            break;
-        case TEXT_EMOTE_APPLAUD:
-        case TEXT_EMOTE_CLAP:
-        case TEXT_EMOTE_CONGRATULATE:
-        case TEXT_EMOTE_HAPPY:
-            // case TEXT_EMOTE_GOLFCLAP:
-            emoteId = EMOTE_ONESHOT_BOW;
-            textEmote = TEXT_EMOTE_BOW;
-            emoteText = "Thank you.. Thank you.. I'm here all week.";
-            break;
-        case TEXT_EMOTE_BEG:
-        case TEXT_EMOTE_GROVEL:
-        case TEXT_EMOTE_PLEAD:
-            emoteId = EMOTE_ONESHOT_NO;
-            textEmote = TEXT_EMOTE_NO;
-            emoteText = "Beg all you want.. I have nothing for you.";
-            break;
-        case TEXT_EMOTE_BITE:
-        case TEXT_EMOTE_POKE:
-        case TEXT_EMOTE_SCRATCH:
-            // case TEXT_EMOTE_PINCH:
-            // case TEXT_EMOTE_PUNCH:
-            emoteId = EMOTE_ONESHOT_ROAR;
-            textEmote = TEXT_EMOTE_ROAR;
-            emoteYell = "OUCH! Dammit, that hurt!";
-            break;
-        case TEXT_EMOTE_BORED:
-            emoteId = EMOTE_ONESHOT_NO;
-            textEmote = TEXT_EMOTE_NO;
-            emoteText = "My job description doesn't include entertaining you..";
-            break;
-        case TEXT_EMOTE_BOW:
-        case TEXT_EMOTE_CURTSEY:
-            emoteId = EMOTE_ONESHOT_BOW;
-            textEmote = TEXT_EMOTE_BOW;
-            break;
-        case TEXT_EMOTE_BRB:
-        case TEXT_EMOTE_SIT:
-            emoteId = EMOTE_ONESHOT_EAT;
-            textEmote = TEXT_EMOTE_EAT;
-            emoteText = "Looks like time for an AFK break..";
-            break;
-        case TEXT_EMOTE_AGREE:
-        case TEXT_EMOTE_NOD:
-            emoteId = EMOTE_ONESHOT_EXCLAMATION;
-            textEmote = TEXT_EMOTE_NOD;
-            emoteText = "At least SOMEONE agrees with me!";
-            break;
-        case TEXT_EMOTE_AMAZE:
-        case TEXT_EMOTE_COWER:
-        case TEXT_EMOTE_CRINGE:
-        case TEXT_EMOTE_EYE:
-        case TEXT_EMOTE_KNEEL:
-        case TEXT_EMOTE_PEER:
-        case TEXT_EMOTE_SURRENDER:
-        case TEXT_EMOTE_PRAISE:
-        case TEXT_EMOTE_SCARED:
-        case TEXT_EMOTE_COMMEND:
-            // case TEXT_EMOTE_AWE:
-            // case TEXT_EMOTE_JEALOUS:
-            // case TEXT_EMOTE_PROUD:
-            emoteId = EMOTE_ONESHOT_FLEX;
-            textEmote = TEXT_EMOTE_FLEX;
-            emoteText = "Yes, Yes. I know I'm amazing..";
-            break;
-        case TEXT_EMOTE_BLEED:
-        case TEXT_EMOTE_MOURN:
-        case TEXT_EMOTE_FLOP:
-            // case TEXT_EMOTE_FAINT:
-            // case TEXT_EMOTE_PULSE:
-            emoteId = EMOTE_ONESHOT_KNEEL;
-            textEmote = TEXT_EMOTE_KNEEL;
-            emoteText = "MEDIC! Stat!";
-            break;
-        case TEXT_EMOTE_BLINK:
-            emoteId = EMOTE_ONESHOT_KICK;
-            emoteText = "What? You got something in your eye?";
-            break;
-        case TEXT_EMOTE_BOUNCE:
-        case TEXT_EMOTE_BARK:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            emoteText = "Who's a good doggy? You're a good doggy!";
-            break;
-        case TEXT_EMOTE_BYE:
-            emoteId = EMOTE_ONESHOT_WAVE;
-            textEmote = TEXT_EMOTE_WAVE;
-            emoteText = "Umm.... wait! Where are you going?!";
-            break;
-        case TEXT_EMOTE_CACKLE:
-        case TEXT_EMOTE_LAUGH:
-        case TEXT_EMOTE_CHUCKLE:
-        case TEXT_EMOTE_GIGGLE:
-        case TEXT_EMOTE_GUFFAW:
-        case TEXT_EMOTE_ROFL:
-        case TEXT_EMOTE_SNICKER:
-            // case TEXT_EMOTE_SNORT:
-            emoteId = EMOTE_ONESHOT_LAUGH;
-            textEmote = TEXT_EMOTE_LAUGH;
-            emoteText = "Wait... what are we laughing at again?";
-            break;
-        case TEXT_EMOTE_CONFUSED:
-        case TEXT_EMOTE_CURIOUS:
-        case TEXT_EMOTE_FIDGET:
-        case TEXT_EMOTE_FROWN:
-        case TEXT_EMOTE_SHRUG:
-        case TEXT_EMOTE_SIGH:
-        case TEXT_EMOTE_STARE:
-        case TEXT_EMOTE_TAP:
-        case TEXT_EMOTE_SURPRISED:
-        case TEXT_EMOTE_WHINE:
-        case TEXT_EMOTE_BOGGLE:
-        case TEXT_EMOTE_LOST:
-        case TEXT_EMOTE_PONDER:
-        case TEXT_EMOTE_SNUB:
-        case TEXT_EMOTE_SERIOUS:
-        case TEXT_EMOTE_EYEBROW:
-            emoteId = EMOTE_ONESHOT_QUESTION;
-            textEmote = TEXT_EMOTE_SHRUG;
-            emoteText = "Don't look at  me.. I just work here";
-            break;
-        case TEXT_EMOTE_COUGH:
-        case TEXT_EMOTE_DROOL:
-        case TEXT_EMOTE_SPIT:
-        case TEXT_EMOTE_LICK:
-        case TEXT_EMOTE_BREATH:
-            // case TEXT_EMOTE_SNEEZE:
-            // case TEXT_EMOTE_SWEAT:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            emoteText = "Ewww! Keep your nasty germs over there!";
-            break;
-        case TEXT_EMOTE_CRY:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            emoteText = "Don't you start crying or it'll make me start crying!";
-            break;
-        case TEXT_EMOTE_CRACK:
-            emoteId = EMOTE_ONESHOT_ROAR;
-            textEmote = TEXT_EMOTE_ROAR;
-            emoteText = "It's clobbering time!";
-            break;
-        case TEXT_EMOTE_EAT:
-        case TEXT_EMOTE_DRINK:
-            emoteId = EMOTE_ONESHOT_EAT;
-            textEmote = TEXT_EMOTE_EAT;
-            emoteText = "I hope you brought enough for the whole class...";
-            break;
-        case TEXT_EMOTE_GLOAT:
-        case TEXT_EMOTE_MOCK:
-        case TEXT_EMOTE_TEASE:
-        case TEXT_EMOTE_EMBARRASS:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            emoteText = "Doesn't mean you need to be an ass about it..";
-            break;
-        case TEXT_EMOTE_HUNGRY:
-            emoteId = EMOTE_ONESHOT_EAT;
-            textEmote = TEXT_EMOTE_EAT;
-            emoteText = "What? You want some of this?";
-            break;
-        case TEXT_EMOTE_LAYDOWN:
-        case TEXT_EMOTE_TIRED:
-        case TEXT_EMOTE_YAWN:
-            emoteId = EMOTE_ONESHOT_KNEEL;
-            textEmote = TEXT_EMOTE_KNEEL;
-            emoteText = "Is it break time already?";
-            break;
-        case TEXT_EMOTE_MOAN:
-        case TEXT_EMOTE_MOON:
-        case TEXT_EMOTE_SEXY:
-        case TEXT_EMOTE_SHAKE:
-        case TEXT_EMOTE_WHISTLE:
-        case TEXT_EMOTE_CUDDLE:
-        case TEXT_EMOTE_PURR:
-        case TEXT_EMOTE_SHIMMY:
-        case TEXT_EMOTE_SMIRK:
-        case TEXT_EMOTE_WINK:
-            // case TEXT_EMOTE_CHARM:
-            emoteId = EMOTE_ONESHOT_NO;
-            textEmote = TEXT_EMOTE_NO;
-            emoteText = "Keep it in your pants, boss..";
-            break;
-        case TEXT_EMOTE_NO:
-        case TEXT_EMOTE_VETO:
-        case TEXT_EMOTE_DISAGREE:
-        case TEXT_EMOTE_DOUBT:
-            emoteId = EMOTE_ONESHOT_QUESTION;
-            textEmote = TEXT_EMOTE_SHRUG;
-            emoteText = "Aww.... why not?!";
-            break;
-        case TEXT_EMOTE_PANIC:
-            emoteId = EMOTE_ONESHOT_EXCLAMATION;
-            textEmote = TEXT_EMOTE_CALM;
-            emoteText = "Now is NOT the time to panic!";
-            break;
-        case TEXT_EMOTE_POINT:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            emoteText = "What?! I can do that TOO!";
-            break;
-        case TEXT_EMOTE_RUDE:
-        case TEXT_EMOTE_RASP:
-            emoteId = EMOTE_ONESHOT_RUDE;
-            textEmote = TEXT_EMOTE_RASP;
-            emoteText = "Right back at you, bub!";  // , LANG_UNIVERSAL;
-            break;
-        case TEXT_EMOTE_ROAR:
-        case TEXT_EMOTE_THREATEN:
-        case TEXT_EMOTE_CALM:
-        case TEXT_EMOTE_DUCK:
-        case TEXT_EMOTE_TAUNT:
-        case TEXT_EMOTE_PITY:
-        case TEXT_EMOTE_GROWL:
-            // case TEXT_EMOTE_TRAIN:
-            // case TEXT_EMOTE_INCOMING:
-            // case TEXT_EMOTE_CHARGE:
-            // case TEXT_EMOTE_FLEE:
-            // case TEXT_EMOTE_ATTACKMYTARGET:
-        case TEXT_EMOTE_OPENFIRE:
-        case TEXT_EMOTE_ENCOURAGE:
-        case TEXT_EMOTE_ENEMY:
-            // case TEXT_EMOTE_CHALLENGE:
-            // case TEXT_EMOTE_REVENGE:
-            // case TEXT_EMOTE_SHAKEFIST:
-            emoteId = EMOTE_ONESHOT_ROAR;
-            textEmote = TEXT_EMOTE_ROAR;
-            emoteYell = "RAWR!";
-            break;
-        case TEXT_EMOTE_TALK:
-            emoteId = EMOTE_ONESHOT_TALK;
-            textEmote = TEXT_EMOTE_LISTEN;
-            break;
-        case TEXT_EMOTE_TALKEX:
-            emoteId = EMOTE_ONESHOT_YES;
-            textEmote = TEXT_EMOTE_AGREE;
-            break;
-        case TEXT_EMOTE_TALKQ:
-        case TEXT_EMOTE_LISTEN:
-            emoteId = EMOTE_ONESHOT_TALK;
-            textEmote = TEXT_EMOTE_TALKQ;
-            emoteText = "Blah Blah Blah Yakety Smackety..";
-            break;
-        case TEXT_EMOTE_THANK:
-            emoteId = EMOTE_ONESHOT_BOW;
-            textEmote = TEXT_EMOTE_BOW;
-            emoteText = "You are quite welcome!";
-            break;
-        case TEXT_EMOTE_VICTORY:
-        case TEXT_EMOTE_CHEER:
-        case TEXT_EMOTE_TOAST:
-            // case TEXT_EMOTE_HIGHFIVE:
-            // case TEXT_EMOTE_DING:
-            emoteId = EMOTE_ONESHOT_CHEER;
-            textEmote = TEXT_EMOTE_CHEER;
-            emoteText = "Yay!";
-            break;
-        case TEXT_EMOTE_COLD:
-        case TEXT_EMOTE_SHIVER:
-        case TEXT_EMOTE_THIRSTY:
-            // case TEXT_EMOTE_OOM:
-            // case TEXT_EMOTE_HEALME:
-            // case TEXT_EMOTE_POUT:
-            emoteId = EMOTE_ONESHOT_QUESTION;
-            textEmote = TEXT_EMOTE_PUZZLE;
-            emoteText = "And what exactly am I supposed to do about that?";
-            break;
-        case TEXT_EMOTE_COMFORT:
-        case TEXT_EMOTE_SOOTHE:
-        case TEXT_EMOTE_PAT:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            emoteText = "Thanks...";
-            break;
-        case TEXT_EMOTE_INSULT:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            emoteText = "You hurt my feelings..";
-            break;
-        case TEXT_EMOTE_JK:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            emoteText = "You.....";
-            break;
-        case TEXT_EMOTE_RAISE:
-            emoteId = EMOTE_ONESHOT_POINT;
-            textEmote = TEXT_EMOTE_POINT;
-            emoteText = "Yes.. you.. at the back of the class..";
-            break;
-        case TEXT_EMOTE_READY:
-            emoteId = EMOTE_ONESHOT_SALUTE;
-            textEmote = TEXT_EMOTE_SALUTE;
-            emoteText = "Ready here, too!";
-            break;
-        case TEXT_EMOTE_SHOO:
-            emoteId = EMOTE_ONESHOT_KICK;
-            textEmote = TEXT_EMOTE_SHOO;
-            emoteText = "Shoo yourself!";
-            break;
-        case TEXT_EMOTE_SLAP:
-            // case TEXT_EMOTE_SMACK:
-            emoteId = EMOTE_ONESHOT_CRY;
-            textEmote = TEXT_EMOTE_CRY;
-            emoteText = "What did I do to deserve that?";
-            break;
-        case TEXT_EMOTE_STAND:
-            emoteId = EMOTE_ONESHOT_NONE;
-            textEmote = TEXT_EMOTE_STAND;
-            emoteText = "What? Break time's over? Fine..";
-            break;
-        case TEXT_EMOTE_TICKLE:
-            emoteId = EMOTE_ONESHOT_LAUGH;
-            textEmote = TEXT_EMOTE_GIGGLE;
-            emoteText = "Hey! Stop that!";
-            break;
-        case TEXT_EMOTE_VIOLIN:
-            emoteId = EMOTE_ONESHOT_TALK;
-            textEmote = TEXT_EMOTE_SIGH;
-            emoteText = "Har Har.. very funny..";
-            break;
-            // case TEXT_EMOTE_HELPME:
-            //     bot->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
-            //     bot->Yell("Quick! Someone HELP!", LANG_UNIVERSAL);
-            //     break;
-        case TEXT_EMOTE_GOODLUCK:
-            // case TEXT_EMOTE_LUCK:
-            emoteId = EMOTE_ONESHOT_TALK;
-            textEmote = TEXT_EMOTE_THANK;
-            emoteText = "Thanks... I'll need it..";
-            break;
-        case TEXT_EMOTE_BRANDISH:
-            // case TEXT_EMOTE_MERCY:
-            emoteId = EMOTE_ONESHOT_BEG;
-            textEmote = TEXT_EMOTE_BEG;
-            emoteText = "Please don't kill me!";
-            break;
-        /*case TEXT_EMOTE_BADFEELING:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_QUESTION);
-            bot->Say("I'm just waiting for the ominous music now...", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_MAP:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("Noooooooo.. you just couldn't ask for directions, huh?", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_IDEA:
-        case TEXT_EMOTE_THINK:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("Oh boy.. another genius idea...", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_OFFER:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("No thanks.. I had some back at the last village", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_PET:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
-            bot->Say("Do I look like a dog to you?!", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_ROLLEYES:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
-            bot->Say("Keep doing that and I'll roll those eyes right out of your head..", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_SING:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_APPLAUD);
-            bot->Say("Lovely... just lovely..", LANG_UNIVERSAL);
-            break;
-        case TEXT_EMOTE_COVEREARS:
-            bot->HandleEmoteCommand(EMOTE_ONESHOT_EXCLAMATION);
-            bot->Yell("You think that's going to help you?!", LANG_UNIVERSAL);
-            break;*/
-        default:
-            // return false;
-            // bot->HandleEmoteCommand(EMOTE_ONESHOT_QUESTION);
-            // bot->Say("Mmmmmkaaaaaay...", LANG_UNIVERSAL);
-            break;
+        if (botAI->GetMaster() == source)
+        {
+            botAI->ChangeStrategy("-follow,+stay", BOT_STATE_NON_COMBAT);
+            botAI->TellMasterNoFacing("Fine.. I'll stay right here..");
+        }
+        return true;
+    }
+    // === 特殊命令：follow ===
+    if (emote == TEXT_EMOTE_BECKON || emote == 324)
+    {
+        if (botAI->GetMaster() == source)
+        {
+            botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
+            botAI->TellMasterNoFacing("Wherever you go, I'll follow..");
+        }
+        return true;
     }
 
+    // === 上下文判断 ===
+    Player* master = botAI->GetMaster();
+    bool isMaster = source && master && source->GetGUID() == master->GetGUID();
+
+    // 获取 source 的名字
+    std::string srcName = source ? source->GetName() : "";
+
+    // 区域名称
+    uint32 zoneId = bot->GetZoneId();
+    std::string zoneName = "";
+    AreaTableEntry const* area = sAreaTableStore.LookupEntry(zoneId);
+    if (area)
+        zoneName = area->area_name[0];
+
+    // 基本状态
+    bool inCombat = bot->IsInCombat();
+    bool isDead = bot->isDead();
+    bool lowHP = bot->GetHealthPct() < 30 && !isDead;
+    bool isCasting = bot->IsNonMeleeSpellCast(false);
+    bool isMounted = bot->IsMounted();
+    bool isMoving = bot->isMoving();
+
+    // 队伍/公会判断
+    Group* group = bot->GetGroup();
+    bool isInRaid = group && group->isRaidGroup();
+    bool isInParty = group && !group->isRaidGroup();
+    bool sameGroup = source && group && group->IsMember(source->GetGUID());
+    bool isGroupLeader = sameGroup && group->GetLeaderGUID() == bot->GetGUID();
+    bool sameGuild = source && bot->GetGuildId() && source->GetGuildId() == bot->GetGuildId();
+
+    // 阵营/种族/职业
+    bool sameFaction = source && bot->GetTeamId() == source->GetTeamId();
+    bool sameRace = source && bot->getRace() == source->getRace();
+    bool sameClass = source && bot->getClass() == source->getClass();
+
+    // 位置场景
+    bool inBattleground = bot->InBattleground();
+    bool inArena = bot->InArena();
+    bool inDungeon = bot->GetMap() && bot->GetMap()->IsDungeon();
+    bool inRaidInstance = bot->GetMap() && bot->GetMap()->IsRaid();
+
+    // 城市判断
+    bool inCity = bot->GetAreaId() && area && bot->GetAreaId() == area->zone && area->flags & AREA_FLAG_CAPITAL;
+
+    bool inCave = false;
+    bool isUnderwater = bot->IsUnderWater();
+    // 洞穴：区域名字包含 'cave' 或 'mine'（不区分大小写）
+    if (!zoneName.empty())
+    {
+        std::string lower = zoneName;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        inCave = (lower.find("cave") != std::string::npos || lower.find("mine") != std::string::npos);
+    }
+
+    // 状态跟踪更新
+    if (inCombat) m_lastInCombat = true;
+    if (!inCombat && m_lastInCombat) { m_killedRecently = true; m_lastInCombat = false; }
+    if (m_killedRecently && !isDead && !inCombat)
+    {
+        time_t now = time(nullptr);
+        if (now - m_lastActionTime > 30) m_killedRecently = false;
+    }
+    m_lastActionTime = time(nullptr);
+
+    // =================================================
+    // 先判断 emote 类型 -> 对应分类池，再按优先级选回复
+    // 优先级: A 关系 -> B 场景 -> C 状态 -> D 兜底
+    // =================================================
+
+    // 分类 1: 问候类
+    if (emote == TEXT_EMOTE_WAVE || emote == TEXT_EMOTE_GREET || emote == TEXT_EMOTE_HAIL ||
+        emote == TEXT_EMOTE_HELLO || emote == TEXT_EMOTE_WELCOME || emote == TEXT_EMOTE_INTRODUCE ||
+        emote == TEXT_EMOTE_SALUTE)
+    {
+        emoteId = EMOTE_ONESHOT_WAVE;
+        textEmote = TEXT_EMOTE_HELLO;
+        // A 关系
+        if (isMaster)
+            chosen = PickRandom("主人来啦！有什么吩咐|欢迎回来，主人|一直在等你呢，主人~");
+        else if (isGroupLeader && source && source->GetGUID() == group->GetLeaderGUID())
+            chosen = PickRandom("队长好！随时待命|队长来视察啦，一切正常|嗨队长，有什么计划");
+        else if (sameGroup)
+            chosen = PickRandom("嗨，队友！一起加油|你好呀，并肩作战|又见面了，伙伴");
+        else if (sameGuild)
+            chosen = PickRandom("公会战友你好|为了公会！|嗨，自家人");
+        else if (sameFaction)
+            chosen = PickRandom("你好，{target}|幸会幸会|嘿，{target}，近来如何");
+        else
+            chosen = PickRandom("你好|嗯……你好|……");
+    }
+    // 分类 2: 积极/赞美类
+    else if (emote == TEXT_EMOTE_APPLAUD || emote == TEXT_EMOTE_CLAP || emote == TEXT_EMOTE_CONGRATULATE ||
+             emote == TEXT_EMOTE_HAPPY || emote == TEXT_EMOTE_CHEER || emote == TEXT_EMOTE_VICTORY ||
+             emote == TEXT_EMOTE_TOAST || emote == TEXT_EMOTE_PRAISE || emote == TEXT_EMOTE_COMMEND)
+    {
+        emoteId = EMOTE_ONESHOT_CHEER;
+        textEmote = TEXT_EMOTE_CHEER;
+        if (isMaster)
+            chosen = PickRandom("主人太厉害了！|都是主人领导有方|主人威武！");
+        else if (sameGroup)
+            chosen = PickRandom("干得漂亮，队友|我们是最强的队伍|牛啊牛啊");
+        else
+            chosen = PickRandom("厉害厉害|不错不错|精彩！");
+    }
+    // 分类 3: 消极/否定类
+    else if (emote == TEXT_EMOTE_ANGRY || emote == TEXT_EMOTE_GLARE || emote == TEXT_EMOTE_BLAME ||
+             emote == TEXT_EMOTE_INSULT || emote == TEXT_EMOTE_NO || emote == TEXT_EMOTE_VETO ||
+             emote == TEXT_EMOTE_DISAGREE || emote == TEXT_EMOTE_DOUBT || emote == TEXT_EMOTE_VIOLIN ||
+             emote == TEXT_EMOTE_GLOAT || emote == TEXT_EMOTE_MOCK || emote == TEXT_EMOTE_TEASE ||
+             emote == TEXT_EMOTE_EMBARRASS)
+    {
+        emoteId = EMOTE_ONESHOT_QUESTION;
+        textEmote = TEXT_EMOTE_SHRUG;
+        if (isMaster)
+            chosen = PickRandom("主人说得对……|好的主人，我错了|都听主人的");
+        else
+            chosen = PickRandom("你认真的？|呵呵|关我什么事");
+    }
+    // 分类 4: 亲昵类
+    else if (emote == TEXT_EMOTE_FLIRT || emote == TEXT_EMOTE_KISS || emote == TEXT_EMOTE_HUG ||
+             emote == TEXT_EMOTE_BLUSH || emote == TEXT_EMOTE_SMILE || emote == TEXT_EMOTE_LOVE ||
+             emote == TEXT_EMOTE_CUDDLE || emote == TEXT_EMOTE_PURR || emote == TEXT_EMOTE_SHIMMY ||
+             emote == TEXT_EMOTE_SMIRK || emote == TEXT_EMOTE_WINK || emote == TEXT_EMOTE_SEXY ||
+             emote == TEXT_EMOTE_MOAN || emote == TEXT_EMOTE_MOON || emote == TEXT_EMOTE_SHAKE ||
+             emote == TEXT_EMOTE_WHISTLE)
+    {
+        emoteId = EMOTE_ONESHOT_SHY;
+        textEmote = TEXT_EMOTE_SHY;
+        if (isMaster)
+            chosen = PickRandom("哎呀，主人别这样~|讨厌啦|主人你真会逗人开心");
+        else
+            chosen = PickRandom("呃……|你干嘛|保持距离谢谢");
+    }
+    // 分类 5: 情绪类（哭/恐惧/恐慌/悲伤）
+    else if (emote == TEXT_EMOTE_CRY || emote == TEXT_EMOTE_BONK || emote == TEXT_EMOTE_SLAP ||
+             emote == TEXT_EMOTE_COMFORT || emote == TEXT_EMOTE_SOOTHE || emote == TEXT_EMOTE_PAT ||
+             emote == TEXT_EMOTE_SCARED || emote == TEXT_EMOTE_COWER || emote == TEXT_EMOTE_CRINGE ||
+             emote == TEXT_EMOTE_PANIC || emote == TEXT_EMOTE_BLEED || emote == TEXT_EMOTE_MOURN ||
+             emote == TEXT_EMOTE_FLOP || emote == TEXT_EMOTE_BRANDISH)
+    {
+        emoteId = EMOTE_ONESHOT_CRY;
+        textEmote = TEXT_EMOTE_CRY;
+        if (isDead)
+            chosen = PickRandom("（已阵亡）|……");
+        else if (lowHP)
+            chosen = PickRandom("救命啊！！|奶我一口！！|要死了要死了");
+        else if (m_killedRecently)
+            chosen = PickRandom("刚活过来，让我缓缓|别再来了|差点就凉了……");
+        else if (isMaster)
+            chosen = PickRandom("主人你要保护我呀|别这样主人|呜呜呜主人");
+        else
+            chosen = PickRandom("呜呜呜|好痛|别这样……");
+    }
+    // 分类 6: 困惑/好奇类
+    else if (emote == TEXT_EMOTE_CONFUSED || emote == TEXT_EMOTE_CURIOUS || emote == TEXT_EMOTE_FIDGET ||
+             emote == TEXT_EMOTE_FROWN || emote == TEXT_EMOTE_SHRUG || emote == TEXT_EMOTE_SIGH ||
+             emote == TEXT_EMOTE_STARE || emote == TEXT_EMOTE_TAP || emote == TEXT_EMOTE_SURPRISED ||
+             emote == TEXT_EMOTE_WHINE || emote == TEXT_EMOTE_BOGGLE || emote == TEXT_EMOTE_LOST ||
+             emote == TEXT_EMOTE_PONDER || emote == TEXT_EMOTE_SNUB || emote == TEXT_EMOTE_SERIOUS ||
+             emote == TEXT_EMOTE_EYEBROW || emote == TEXT_EMOTE_AMAZE || emote == TEXT_EMOTE_KNEEL ||
+             emote == TEXT_EMOTE_EYE || emote == TEXT_EMOTE_PEER || emote == TEXT_EMOTE_SURRENDER ||
+             emote == TEXT_EMOTE_READY)
+    {
+        emoteId = EMOTE_ONESHOT_QUESTION;
+        textEmote = TEXT_EMOTE_SHRUG;
+        if (isMaster)
+            chosen = PickRandom("主人有什么吩咐？|需要我做什么吗|我在听，主人");
+        else
+            chosen = PickRandom("？？？|啥情况|不理解……");
+    }
+    // 分类 7: 调皮/玩笑类
+    else if (emote == TEXT_EMOTE_JOKE || emote == TEXT_EMOTE_CHICKEN || emote == TEXT_EMOTE_FART ||
+             emote == TEXT_EMOTE_BURP || emote == TEXT_EMOTE_GASP || emote == TEXT_EMOTE_NOSEPICK ||
+             emote == TEXT_EMOTE_SNIFF || emote == TEXT_EMOTE_STINK || emote == TEXT_EMOTE_TICKLE ||
+             emote == TEXT_EMOTE_JK)
+    {
+        emoteId = EMOTE_ONESHOT_LAUGH;
+        textEmote = TEXT_EMOTE_LAUGH;
+        if (isMaster)
+            chosen = PickRandom("哈哈哈哈主人你太有意思了|主人真幽默|笑死了");
+        else
+            chosen = PickRandom("噗哈哈|你认真的？|无聊……");
+    }
+    // 分类 8: 礼貌/感谢类
+    else if (emote == TEXT_EMOTE_THANK || emote == TEXT_EMOTE_BOW || emote == TEXT_EMOTE_CURTSEY ||
+             emote == TEXT_EMOTE_APOLOGIZE || emote == TEXT_EMOTE_AGREE || emote == TEXT_EMOTE_NOD ||
+             emote == TEXT_EMOTE_GOODLUCK)
+    {
+        emoteId = EMOTE_ONESHOT_BOW;
+        textEmote = TEXT_EMOTE_BOW;
+        if (isMaster)
+            chosen = PickRandom("不客气，主人|乐意为您效劳|这是我应该做的");
+        else if (sameGroup)
+            chosen = PickRandom("客气了|应该的|互相帮忙嘛");
+        else
+            chosen = PickRandom("不用谢|没关系|嗯嗯");
+    }
+    // 分类 9: 身体动作/状态类
+    else if (emote == TEXT_EMOTE_DANCE || emote == TEXT_EMOTE_FLEX || emote == TEXT_EMOTE_SIT ||
+             emote == TEXT_EMOTE_LAYDOWN || emote == TEXT_EMOTE_STAND || emote == TEXT_EMOTE_BRB ||
+             emote == TEXT_EMOTE_EAT || emote == TEXT_EMOTE_DRINK || emote == TEXT_EMOTE_HUNGRY ||
+             emote == TEXT_EMOTE_TIRED || emote == TEXT_EMOTE_YAWN || emote == TEXT_EMOTE_COUGH ||
+             emote == TEXT_EMOTE_DROOL || emote == TEXT_EMOTE_SPIT || emote == TEXT_EMOTE_LICK ||
+             emote == TEXT_EMOTE_BREATH || emote == TEXT_EMOTE_BOUNCE || emote == TEXT_EMOTE_BARK ||
+             emote == TEXT_EMOTE_SHOE || emote == TEXT_EMOTE_BEG || emote == TEXT_EMOTE_GROVEL ||
+             emote == TEXT_EMOTE_PLEAD || emote == TEXT_EMOTE_BITE || emote == TEXT_EMOTE_POKE ||
+             emote == TEXT_EMOTE_SCRATCH || emote == TEXT_EMOTE_BORED || emote == TEXT_EMOTE_BLINK ||
+             emote == TEXT_EMOTE_CRACK || emote == TEXT_EMOTE_POINT || emote == TEXT_EMOTE_RAISE ||
+             emote == TEXT_EMOTE_SHOO || emote == TEXT_EMOTE_RASP || emote == TEXT_EMOTE_COLD ||
+             emote == TEXT_EMOTE_SHIVER || emote == TEXT_EMOTE_THIRSTY)
+    {
+        emoteId = EMOTE_ONESHOT_POINT;
+        textEmote = TEXT_EMOTE_POINT;
+        if (isMaster)
+            chosen = PickRandom("？？|主人你干嘛|怎么啦主人");
+        else
+            chosen = PickRandom("……|你干啥|？？？");
+    }
+    // 分类 10: 战斗/威胁类
+    else if (emote == TEXT_EMOTE_ROAR || emote == TEXT_EMOTE_THREATEN || emote == TEXT_EMOTE_CALM ||
+             emote == TEXT_EMOTE_DUCK || emote == TEXT_EMOTE_TAUNT || emote == TEXT_EMOTE_PITY ||
+             emote == TEXT_EMOTE_GROWL || emote == TEXT_EMOTE_OPENFIRE || emote == TEXT_EMOTE_ENCOURAGE ||
+             emote == TEXT_EMOTE_ENEMY || emote == TEXT_EMOTE_RUDE)
+    {
+        emoteId = EMOTE_ONESHOT_ROAR;
+        textEmote = TEXT_EMOTE_ROAR;
+        if (inBattleground)
+            chosen = PickRandom("冲啊！！|为了荣誉！|碾碎他们");
+        else if (inArena)
+            chosen = PickRandom("准备好了吗|别让我失望|干掉他们");
+        else if (inDungeon || inRaidInstance)
+            chosen = PickRandom("拉好仇恨！|打断打断|集中火力");
+        else if (inCombat)
+            chosen = PickRandom("来啊！|一起上|为了部落/联盟！");
+        else if (isMaster)
+            chosen = PickRandom("主人说打谁就打谁|随时准备战斗|谁敢惹主人");
+        else
+        {
+            chosen = PickRandom("放马过来|谁怕谁|哼");
+            isYell = true;
+        }
+    }
+    // 分类 11: TALKQ / TALK / TALKEX / LISTEN
+    else if (emote == TEXT_EMOTE_TALKQ || emote == TEXT_EMOTE_LISTEN ||
+             emote == TEXT_EMOTE_TALK || emote == TEXT_EMOTE_TALKEX)
+    {
+        emoteId = EMOTE_ONESHOT_TALK;
+        textEmote = TEXT_EMOTE_TALKQ;
+        if (isMaster)
+            chosen = PickRandom("在呢主人，请说|我在听|主人请讲");
+        else if (inCity)
+            chosen = PickRandom("这地方挺热闹的|{zone}的风景真不错|今天天气不错");
+        else if (inDungeon || inRaidInstance)
+            chosen = PickRandom("小心巡逻怪|注意ADD|控好怪，一波波打");
+        else if (inBattleground)
+            chosen = PickRandom("守好旗|支援中路|拿下墓地");
+        else if (isUnderwater)
+            chosen = PickRandom("咕噜咕噜……憋不住了|快上岸|谁能给我个水下呼吸");
+        else if (inCave)
+            chosen = PickRandom("这洞有点深啊|小心脚下|矿在哪呢");
+        else
+            chosen = PickRandom("嗯|啥事|说呗");
+    }
+    // 默认：未匹配的 emote 不做反应
+    else
+    {
+        return false;
+    }
+
+    // 统一替换占位符
+    chosen = ReplacePlaceholders(chosen, srcName, zoneId, zoneName);
+
+    // === 转身 + 输出 ===
     if (source && !bot->isMoving() && !bot->HasInArc(static_cast<float>(M_PI), source, sPlayerbotAIConfig.farDistance))
         ServerFacade::instance().SetFacingTo(bot, source);
 
-    if (verbal)
+    if (verbal && !chosen.empty())
     {
-        if (emoteText.size())
-            bot->Say(emoteText, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+        if (isYell)
+            bot->Yell(chosen, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+        else
+            bot->Say(chosen, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
 
-        if (emoteYell.size())
-            bot->Yell(emoteYell, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+        LOG_INFO("playerbots", "bot={} source={} emote={} type=text text="{}"",
+            EscapeFmt(bot->GetName()), EscapeFmt(srcName), emote, EscapeFmt(chosen));
     }
 
     if (textEmote)
