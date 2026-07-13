@@ -205,7 +205,7 @@ static std::string ReplacePlaceholders(std::string const& tmpl, std::string cons
 
 bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
 {
-    LOG_ERROR("playerbots", "ReceiveEmote called: source={} emote={} verbal={}",
+    LOG_INFO("playerbots", "[EMOTE_CN_REPLY] ReceiveEmote called: source={} emote={} verbal={}",
         source ? source->GetName() : "null", emote, verbal);
     uint32 emoteId = 0;
     uint32 textEmote = 0;
@@ -515,10 +515,10 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
             bot->Yell(chosen, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
         else
             bot->Say(chosen, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
-
-        LOG_INFO("playerbots", "bot={} source={} emote={} type=text text=\"{}\"",
-            EscapeFmt(bot->GetName()), EscapeFmt(srcName), emote, EscapeFmt(chosen));
     }
+
+    LOG_INFO("playerbots", "[EMOTE_CN_REPLY] bot={} source={} emote={} verbal={} chosen=\"{}\"",
+        EscapeFmt(bot->GetName()), EscapeFmt(srcName), emote, verbal, EscapeFmt(chosen));
 
     if (textEmote)
     {
