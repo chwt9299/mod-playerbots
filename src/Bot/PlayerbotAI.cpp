@@ -6625,6 +6625,10 @@ uint32 PlayerbotAI::GetReactDelay()
 
         bool inCombat = bot->IsInCombat();
 
+        // Nearby real player: smooth movement (base * 2 = 200ms)
+        if (HasPlayerNearby(static_cast<float>(sPlayerbotAIConfig.BotActiveAloneForceWhenInRadius)))
+            return base * 2;
+
         if (!inCombat)
             return base * 10;
 
@@ -6656,6 +6660,10 @@ uint32 PlayerbotAI::GetReactDelay()
     // When in combat, return 5 times the base
     if (bot->IsInCombat() || currentState == BOT_STATE_COMBAT)
         return base * 5;
+
+    // Nearby real player: smooth movement (base * 2 = 200ms)
+    if (HasPlayerNearby(static_cast<float>(sPlayerbotAIConfig.BotActiveAloneForceWhenInRadius)))
+        return base * 2;
 
     // When not resting, return 10-30 times the base
     if (!bot->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING))
