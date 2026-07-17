@@ -1084,21 +1084,36 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
         {
             if (!charname)
             {
+                LOG_INFO("playerbots", "Bot AI mode OFF - bot: {}", master->GetName());
                 messages.push_back("全自动 AI 已关闭。");
                 delete GET_PLAYERBOT_AI(master);
             }
             else
             {
-                GET_PLAYERBOT_AI(master)->SetPriorityStrategy(charname);
-                messages.push_back("已切换优先策略为: " + std::string(charname));
+                std::string arg = charname;
+                if (arg == "quest" || arg == "rpg" || arg == "grind" || arg == "travel")
+                {
+                    GET_PLAYERBOT_AI(master)->SetPriorityStrategy(arg);
+                    LOG_INFO("playerbots", "Bot AI switch strategy - bot: {} strategy: {}",
+                             master->GetName(), arg);
+                }
+                else
+                {
+                    GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
+                    messages.push_back("未知策略，可用: quest, rpg, grind, travel");
+                }
+
+                // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
+                GET_PLAYERBOT_AI(master)->EnableBotAiMode();
+                messages.push_back("已切换优先策略为: " + arg);
             }
         }
         else
         {
+            LOG_INFO("playerbots", "Bot AI mode ON - bot: {}", master->GetName());
             messages.push_back("全自动 AI 已开启。");
             PlayerbotsMgr::instance().AddPlayerbotData(master, true);
             GET_PLAYERBOT_AI(master)->SetMaster(master);
-            GET_PLAYERBOT_AI(master)->SetBotAiMode(true);
 
             if (charname)
             {
@@ -1117,6 +1132,9 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
             {
                 GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
             }
+
+            // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
+            GET_PLAYERBOT_AI(master)->EnableBotAiMode();
         }
 
         return messages;

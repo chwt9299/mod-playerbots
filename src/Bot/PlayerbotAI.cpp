@@ -1889,6 +1889,23 @@ void PlayerbotAI::ResetStrategies(bool /*load*/)
     //     PlayerbotRepository::instance().Load(this);
 }
 
+void PlayerbotAI::EnableBotAiMode()
+{
+    LOG_INFO("playerbots", "EnableBotAiMode - bot: {}", bot->GetName());
+
+    _botAiMode = true;
+
+    // ResetStrategies() will:
+    //   1. Remove all strategies from all engines
+    //   2. Re-add defaults (AiFactory::AddDefaultNonCombatStrategies handles
+    //      bot ai mode by injecting grind/rpg/travel strategies)
+    //   3. Register PriorityMultiplier for the non-combat engine
+    ResetStrategies();
+
+    LOG_INFO("playerbots", "EnableBotAiMode complete - bot: {} priority: {}",
+             bot->GetName(), _priorityStrategy);
+}
+
 bool PlayerbotAI::IsRanged(Player* player, bool bySpec)
 {
     PlayerbotAI* botAi = GET_PLAYERBOT_AI(player);
