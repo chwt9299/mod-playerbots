@@ -1903,35 +1903,34 @@ void PlayerbotAI::EnableBotAiMode()
     ResetStrategies();
 
     // Prune non-matching strategies so the bot focuses entirely on the
-    // chosen priority. Travel is always kept: any goal requires movement.
+    // chosen priority. Travel is always kept: without it the bot cannot
+    // move to any target. The 'new rpg' strategy provides quest-related
+    // travel targets (quest givers, objectives) — it must be kept for
+    // quest mode, otherwise the bot has no destination.
     if (!_priorityStrategy.empty() && engines[BOT_STATE_NON_COMBAT])
     {
         if (_priorityStrategy == "quest")
         {
-            engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
-            engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
-            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/grind, kept quest+travel");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned grind, kept quest+new rpg+travel");
         }
         else if (_priorityStrategy == "rpg")
         {
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
-            engines[BOT_STATE_NON_COMBAT]->removeStrategy("travel");
-            LOG_INFO("playerbots", "EnableBotAiMode - pruned grind/travel, kept rpg");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned grind, kept new rpg+travel");
         }
         else if (_priorityStrategy == "grind")
         {
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
-            engines[BOT_STATE_NON_COMBAT]->removeStrategy("travel");
-            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/travel, kept grind");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned new rpg, kept grind+travel");
         }
         else if (_priorityStrategy == "travel")
         {
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
             engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
-            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/grind, kept travel");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned new rpg/grind, kept travel");
         }
     }
 
