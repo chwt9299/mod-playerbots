@@ -22,29 +22,34 @@ public:
             return 1.0f;
 
         std::string const name = action->getName();
+        float multiplier = 1.0f;
 
         if (strategy == "quest")
         {
             if (IsQuestAction(name))
-                return 50.0f;
+                multiplier = 50.0f;
         }
         else if (strategy == "rpg")
         {
             if (IsRpgAction(name))
-                return 50.0f;
+                multiplier = 50.0f;
         }
         else if (strategy == "grind")
         {
             if (IsGrindAction(name))
-                return 50.0f;
+                multiplier = 50.0f;
         }
         else if (strategy == "travel")
         {
             if (IsTravelAction(name))
-                return 50.0f;
+                multiplier = 50.0f;
         }
 
-        return 1.0f;
+        if (multiplier > 1.0f)
+            LOG_DEBUG("playerbots", "PriorityMultiplier: action={} strategy={} multiplier={}",
+                      name, strategy, multiplier);
+
+        return multiplier;
     }
 
 private:
