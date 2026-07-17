@@ -83,8 +83,10 @@ private:
     static std::map<std::string, uint32> skills;
     static std::map<std::string, ChatMsg> chats;
     static std::map<uint8, std::string> classes;
+    static std::map<uint8, std::string> classes_zhCN;
     static std::map<uint8, std::string> races;
     static std::map<uint8, std::map<uint8, std::string>> specs;
+    static std::map<uint8, std::map<uint8, std::string>> specs_zhCN;
 };
 
 #endif

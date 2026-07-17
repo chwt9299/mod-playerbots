@@ -12,8 +12,21 @@
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
 #include "Playerbots.h"
+#include "PlayerbotTextMgr.h"
 #include "StatsWeightCalculator.h"
 #include "ItemPackets.h"
+
+static std::string SlotName(uint8 slot)
+{
+    bool useCN = (sWorld->GetDefaultDbcLocale() == LOCALE_zhCN);
+    switch (slot)
+    {
+        case EQUIPMENT_SLOT_MAINHAND:  return useCN ? "主手" : "main hand";
+        case EQUIPMENT_SLOT_OFFHAND:   return useCN ? "副手" : "offhand";
+        case EQUIPMENT_SLOT_RANGED:    return useCN ? "远程栏位" : "ranged slot";
+        default:                       return "";
+    }
+}
 
 bool EquipAction::Execute(Event event)
 {
@@ -75,9 +88,9 @@ void EquipAction::EquipItem(Item* item)
     if (invType == INVTYPE_AMMO)
     {
         bot->SetAmmo(itemId);
-        std::ostringstream out;
-        out << "equipping " << chat->FormatItem(itemProto);
-        botAI->TellMaster(out);
+        std::map<std::string, std::string> ph;
+        ph["%item"] = chat->FormatItem(itemProto);
+        botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_command", "Equipping %item", ph));
         return;
     }
 
@@ -112,9 +125,10 @@ void EquipAction::EquipItem(Item* item)
             nicePacket.Read();
             bot->GetSession()->HandleAutoEquipItemSlotOpcode(nicePacket);
 
-            std::ostringstream out;
-            out << "Equipping " << chat->FormatItem(itemProto) << " in ranged slot";
-            botAI->TellMaster(out);
+            std::map<std::string, std::string> ph;
+            ph["%item"] = chat->FormatItem(itemProto);
+            ph["%slot"] = SlotName(EQUIPMENT_SLOT_RANGED);
+            botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_command_slot", "Equipping %item in %slot", ph));
             return;
         }
 
@@ -224,14 +238,15 @@ void EquipAction::EquipItem(Item* item)
                     nicePacket.Read();
                     bot->GetSession()->HandleAutoEquipItemSlotOpcode(nicePacket);
 
-                    std::ostringstream moveMsg;
-                    moveMsg << "Main hand upgrade found. Moving " << chat->FormatItem(oldMHProto) << " to offhand";
-                    botAI->TellMaster(moveMsg);
+                    std::map<std::string, std::string> ph;
+                    ph["%item"] = chat->FormatItem(oldMHProto);
+                    botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_move_offhand", "Moving %item to offhand", ph));
                 }
 
-                std::ostringstream out;
-                out << "Equipping " << chat->FormatItem(itemProto) << " in main hand";
-                botAI->TellMaster(out);
+                std::map<std::string, std::string> ph2;
+                ph2["%item"] = chat->FormatItem(itemProto);
+                ph2["%slot"] = SlotName(EQUIPMENT_SLOT_MAINHAND);
+                botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_command_slot", "Equipping %item in %slot", ph2));
                 return;
             }
 
@@ -246,9 +261,10 @@ void EquipAction::EquipItem(Item* item)
                 nicePacket.Read();
                 bot->GetSession()->HandleAutoEquipItemSlotOpcode(nicePacket);
 
-                std::ostringstream out;
-                out << "Equipping " << chat->FormatItem(itemProto) << " in offhand";
-                botAI->TellMaster(out);
+                std::map<std::string, std::string> ph;
+                ph["%item"] = chat->FormatItem(itemProto);
+                ph["%slot"] = SlotName(EQUIPMENT_SLOT_OFFHAND);
+                botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_command_slot", "Equipping %item in %slot", ph));
                 return;
             }
             else
@@ -326,9 +342,9 @@ void EquipAction::EquipItem(Item* item)
         }
     }
 
-    std::ostringstream out;
-    out << "Equipping " << chat->FormatItem(itemProto);
-    botAI->TellMaster(out);
+    std::map<std::string, std::string> ph;
+    ph["%item"] = chat->FormatItem(itemProto);
+    botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("equip_command", "Equipping %item", ph));
 }
 
 ItemIds EquipAction::SelectInventoryItemsToEquip()

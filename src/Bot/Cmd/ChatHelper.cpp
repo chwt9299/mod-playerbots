@@ -23,8 +23,10 @@ std::map<std::string, uint32> ChatHelper::slots;
 std::map<std::string, uint32> ChatHelper::skills;
 std::map<std::string, ChatMsg> ChatHelper::chats;
 std::map<uint8, std::string> ChatHelper::classes;
+std::map<uint8, std::string> ChatHelper::classes_zhCN;
 std::map<uint8, std::string> ChatHelper::races;
 std::map<uint8, std::map<uint8, std::string> > ChatHelper::specs;
+std::map<uint8, std::map<uint8, std::string> > ChatHelper::specs_zhCN;
 
 template <class T>
 static bool substrContainsInMap(std::string const searchTerm, std::map<std::string, T> searchIn)
@@ -182,6 +184,56 @@ ChatHelper::ChatHelper(PlayerbotAI* botAI) : PlayerbotAIAware(botAI)
     races[RACE_UNDEAD_PLAYER] = "Undead";
     races[RACE_BLOODELF] = "Blood Elf";
     races[RACE_DRAENEI] = "Draenei";
+
+    classes_zhCN[CLASS_WARRIOR] = "战士";
+    specs_zhCN[CLASS_WARRIOR][0] = "武器";
+    specs_zhCN[CLASS_WARRIOR][1] = "狂怒";
+    specs_zhCN[CLASS_WARRIOR][2] = "防护";
+
+    classes_zhCN[CLASS_PALADIN] = "圣骑士";
+    specs_zhCN[CLASS_PALADIN][0] = "神圣";
+    specs_zhCN[CLASS_PALADIN][1] = "防护";
+    specs_zhCN[CLASS_PALADIN][2] = "惩戒";
+
+    classes_zhCN[CLASS_HUNTER] = "猎人";
+    specs_zhCN[CLASS_HUNTER][0] = "野兽控制";
+    specs_zhCN[CLASS_HUNTER][1] = "射击";
+    specs_zhCN[CLASS_HUNTER][2] = "生存";
+
+    classes_zhCN[CLASS_ROGUE] = "潜行者";
+    specs_zhCN[CLASS_ROGUE][0] = "刺杀";
+    specs_zhCN[CLASS_ROGUE][1] = "战斗";
+    specs_zhCN[CLASS_ROGUE][2] = "敏锐";
+
+    classes_zhCN[CLASS_PRIEST] = "牧师";
+    specs_zhCN[CLASS_PRIEST][0] = "戒律";
+    specs_zhCN[CLASS_PRIEST][1] = "神圣";
+    specs_zhCN[CLASS_PRIEST][2] = "暗影";
+
+    classes_zhCN[CLASS_DEATH_KNIGHT] = "死亡骑士";
+    specs_zhCN[CLASS_DEATH_KNIGHT][0] = "鲜血";
+    specs_zhCN[CLASS_DEATH_KNIGHT][1] = "冰霜";
+    specs_zhCN[CLASS_DEATH_KNIGHT][2] = "邪恶";
+
+    classes_zhCN[CLASS_SHAMAN] = "萨满";
+    specs_zhCN[CLASS_SHAMAN][0] = "元素";
+    specs_zhCN[CLASS_SHAMAN][1] = "增强";
+    specs_zhCN[CLASS_SHAMAN][2] = "恢复";
+
+    classes_zhCN[CLASS_MAGE] = "法师";
+    specs_zhCN[CLASS_MAGE][0] = "奥术";
+    specs_zhCN[CLASS_MAGE][1] = "火焰";
+    specs_zhCN[CLASS_MAGE][2] = "冰霜";
+
+    classes_zhCN[CLASS_WARLOCK] = "术士";
+    specs_zhCN[CLASS_WARLOCK][0] = "痛苦";
+    specs_zhCN[CLASS_WARLOCK][1] = "恶魔学识";
+    specs_zhCN[CLASS_WARLOCK][2] = "毁灭";
+
+    classes_zhCN[CLASS_DRUID] = "德鲁伊";
+    specs_zhCN[CLASS_DRUID][0] = "平衡";
+    specs_zhCN[CLASS_DRUID][1] = "野性战斗";
+    specs_zhCN[CLASS_DRUID][2] = "恢复";
 }
 
 std::string const ChatHelper::formatMoney(uint32 copper)
@@ -613,18 +665,19 @@ std::string const ChatHelper::FormatClass(Player* player, int8 spec)
     uint8 cls = player->getClass();
 
     std::ostringstream out;
-    out << specs[cls][spec] << " (";
+    bool useCN = (sWorld->GetDefaultDbcLocale() == LOCALE_zhCN);
+    out << "|cFF00FF00" << (useCN ? specs_zhCN[cls][spec] : specs[cls][spec]) << "|r (";
 
     std::map<uint8, uint32> tabs = AiFactory::GetPlayerSpecTabs(player);
     uint32 c0 = tabs[0];
     uint32 c1 = tabs[1];
     uint32 c2 = tabs[2];
 
-    out << (c0 ? "|h|cff00ff00" : "") << c0 << "|h|cffffffff/";
-    out << (c1 ? "|h|cff00ff00" : "") << c1 << "|h|cffffffff/";
-    out << (c2 ? "|h|cff00ff00" : "") << c2 << "|h|cffffffff";
+    out << (c0 ? "|cff00ff00" : "") << c0 << "|r/";
+    out << (c1 ? "|cff00ff00" : "") << c1 << "|r/";
+    out << (c2 ? "|cff00ff00" : "") << c2 << "|r";
 
-    out << ")|r " << classes[cls];
+    out << ")|cFF00FF00 " << (useCN ? classes_zhCN[cls] : classes[cls]) << "|r";
     return out.str();
 }
 
