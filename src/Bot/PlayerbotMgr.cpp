@@ -1096,22 +1096,20 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
                     GET_PLAYERBOT_AI(master)->SetPriorityStrategy(arg);
                     LOG_INFO("playerbots", "Bot AI switch strategy - bot: {} strategy: {}",
                              master->GetName(), arg);
+                    // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
+                    GET_PLAYERBOT_AI(master)->EnableBotAiMode();
+                    messages.push_back("已切换至 " + arg + " 模式。");
                 }
                 else
                 {
                     GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
                     messages.push_back("未知策略，可用: quest, rpg, grind, travel");
                 }
-
-                // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
-                GET_PLAYERBOT_AI(master)->EnableBotAiMode();
-                messages.push_back("已切换优先策略为: " + arg);
             }
         }
         else
         {
             LOG_INFO("playerbots", "Bot AI mode ON - bot: {}", master->GetName());
-            messages.push_back("全自动 AI 已开启。");
             PlayerbotsMgr::instance().AddPlayerbotData(master, true);
             GET_PLAYERBOT_AI(master)->SetMaster(master);
 
@@ -1121,6 +1119,9 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
                 if (arg == "quest" || arg == "rpg" || arg == "grind" || arg == "travel")
                 {
                     GET_PLAYERBOT_AI(master)->SetPriorityStrategy(arg);
+                    // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
+                    GET_PLAYERBOT_AI(master)->EnableBotAiMode();
+                    messages.push_back("全自动 AI 已开启（" + arg + " 模式）。");
                 }
                 else
                 {
@@ -1131,10 +1132,9 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
             else
             {
                 GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
+                GET_PLAYERBOT_AI(master)->EnableBotAiMode();
+                messages.push_back("全自动 AI 已开启（默认模式）。");
             }
-
-            // EnableBotAiMode sets flag + injects strategies + registers PriorityMultiplier
-            GET_PLAYERBOT_AI(master)->EnableBotAiMode();
         }
 
         return messages;
