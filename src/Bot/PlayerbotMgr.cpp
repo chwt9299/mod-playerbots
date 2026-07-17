@@ -1078,6 +1078,50 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
         return messages;
     }
 
+    if (!strcmp(cmd, "ai"))
+    {
+        if (GET_PLAYERBOT_AI(master))
+        {
+            if (!charname)
+            {
+                messages.push_back("全自动 AI 已关闭。");
+                delete GET_PLAYERBOT_AI(master);
+            }
+            else
+            {
+                GET_PLAYERBOT_AI(master)->SetPriorityStrategy(charname);
+                messages.push_back("已切换优先策略为: " + std::string(charname));
+            }
+        }
+        else
+        {
+            messages.push_back("全自动 AI 已开启。");
+            PlayerbotsMgr::instance().AddPlayerbotData(master, true);
+            GET_PLAYERBOT_AI(master)->SetMaster(master);
+            GET_PLAYERBOT_AI(master)->SetBotAiMode(true);
+
+            if (charname)
+            {
+                std::string arg = charname;
+                if (arg == "quest" || arg == "rpg" || arg == "grind" || arg == "travel")
+                {
+                    GET_PLAYERBOT_AI(master)->SetPriorityStrategy(arg);
+                }
+                else
+                {
+                    GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
+                    messages.push_back("未知策略，可用: quest, rpg, grind, travel");
+                }
+            }
+            else
+            {
+                GET_PLAYERBOT_AI(master)->SetPriorityStrategy("");
+            }
+        }
+
+        return messages;
+    }
+
     if (!strcmp(cmd, "lookup"))
     {
         messages.push_back(LookupBots(master));

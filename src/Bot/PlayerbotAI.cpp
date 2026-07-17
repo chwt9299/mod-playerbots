@@ -33,6 +33,7 @@
 #include "MapMgr.h"
 #include "MotionMaster.h"
 #include "MoveSplineInit.h"
+#include "PriorityMultiplier.h"
 #include "NewRpgStrategy.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
@@ -1520,6 +1521,21 @@ void PlayerbotAI::DoNextAction(bool min)
 
     bool minimal = !this->AllowActivity();
 
+    // When in bot ai mode and not in combat, the engine's trigger system
+    // (via TravelStrategy's "no travel target" trigger) will naturally
+    // fire ChooseTravelTargetAction when travel state is idle, selecting
+    // the highest relevance action for the bot.
+    if (_botAiMode && !bot->IsInCombat())
+    {
+        if (TravelTarget* target = AI_VALUE(TravelTarget*, "travel target"))
+        {
+            if (target->getTravelState() == TravelState::TRAVEL_STATE_IDLE)
+            {
+                // Engine will handle via trigger system - no explicit action needed
+            }
+        }
+    }
+
     currentEngine->DoNextAction(nullptr, 0, (minimal || min));
 
     if (minimal)
@@ -1877,6 +1893,9 @@ void PlayerbotAI::ResetStrategies(bool /*load*/)
 
     for (uint8 i = 0; i < BOT_STATE_MAX; i++)
         engines[i]->Init();
+
+    if (_botAiMode)
+        engines[BOT_STATE_NON_COMBAT]->addMultiplier(new PriorityMultiplier(this));
 
     // if (load)
     //     PlayerbotRepository::instance().Load(this);

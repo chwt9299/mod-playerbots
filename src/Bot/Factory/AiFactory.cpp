@@ -669,7 +669,18 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
         }
     }
     else
+    {
+        if (facade && facade->IsBotAiMode())
+        {
+            nonCombatEngine->addStrategy("grind", false);
+            if (sPlayerbotAIConfig.enableNewRpgStrategy)
+                nonCombatEngine->addStrategy("new rpg", false);
+            else
+                nonCombatEngine->addStrategy("rpg", false);
+            nonCombatEngine->addStrategy("travel", false);
+        }
         nonCombatEngine->ChangeStrategy(sPlayerbotAIConfig.nonCombatStrategies);
+    }
 
     // Battleground switch
     if (player->InBattleground() && player->GetBattleground())

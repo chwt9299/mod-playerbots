@@ -88,6 +88,7 @@ public:
     void removeActionExecutionListener(ActionExecutionListener* listener) { actionExecutionListeners.Remove(listener); }
     bool HasStrategyType(StrategyType type) { return strategyTypeMask & type; }
     bool HasTargetExclusions() const { return hasTargetExclusions; }
+    void addMultiplier(Multiplier* m) { multipliers.push_back(m); }
     virtual ~Engine(void);
 
     bool testMode;

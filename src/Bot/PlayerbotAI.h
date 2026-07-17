@@ -578,6 +578,11 @@ public:
     static bool IsOpposing(uint8 race1, uint8 race2);
     PlayerbotSecurity* GetSecurity() { return &security; }
 
+    bool IsBotAiMode() const { return _botAiMode; }
+    void SetBotAiMode(bool mode) { _botAiMode = mode; }
+    std::string GetPriorityStrategy() const { return _priorityStrategy; }
+    void SetPriorityStrategy(const std::string& s) { _priorityStrategy = s; }
+
     Position GetJumpDestination() { return jumpDestination; }
     void SetJumpDestination(Position pos) { jumpDestination = pos; }
     void ResetJumpDestination() { jumpDestination = Position(); }
@@ -654,6 +659,8 @@ protected:
     Position jumpDestination = Position();
     uint32 nextTransportCheck = 0;
     bool spellInterruptRequested = false;
+    bool _botAiMode = false;
+    std::string _priorityStrategy;
 };
 
 #endif
