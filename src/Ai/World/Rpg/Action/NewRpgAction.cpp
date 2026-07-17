@@ -62,8 +62,14 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
     switch (status)
     {
         case RPG_IDLE:
-            return RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
-                                       RPG_TRAVEL_FLIGHT, RPG_REST, RPG_OUTDOOR_PVP});
+        {
+            if (!RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
+                                      RPG_TRAVEL_FLIGHT, RPG_REST, RPG_OUTDOOR_PVP}))
+            {
+                info.ChangeToRest();
+            }
+            return true;
+        }
 
         case RPG_GO_GRIND:
         {
@@ -256,7 +262,10 @@ bool NewRpgDoQuestAction::Execute(Event /*event*/)
     NewRpgInfo& info = botAI->rpgInfo;
     auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&info.data);
     if (!dataPtr)
-        return false;
+    {
+        info.ChangeToIdle();
+        return true;
+    }
     auto& data = *dataPtr;
     uint32 questId = data.questId;
     uint8 questStatus = bot->GetQuestStatus(questId);
