@@ -8,6 +8,7 @@
 #define PLAYERBOTS_MOVETOTRAVELTARGETACTION_H
 
 #include "MovementActions.h"
+#include "WorldPosition.h"
 
 class PlayerbotAI;
 
@@ -18,6 +19,10 @@ public:
 
     bool Execute(Event event) override;
     bool isUseful() override;
+
+private:
+    WorldPosition _lastReportedPos;
+    bool _lastReportedPosInitialized = false;
 };
 
 #endif

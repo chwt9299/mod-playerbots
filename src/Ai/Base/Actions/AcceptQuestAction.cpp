@@ -27,6 +27,12 @@ bool AcceptAllQuestsAction::ProcessQuest(Quest const* quest, Object* questGiver)
         bot->Say(text, LANG_UNIVERSAL);
     }
 
+    if (botAI->IsBotAiMode())
+    {
+        botAI->TellMasterNoFacing("接受任务 " + text_quest);
+        LOG_INFO("playerbots", "{} => Quest whisper: accepted [{}]", bot->GetName(), quest->GetTitle());
+    }
+
     return true;
 }
 
