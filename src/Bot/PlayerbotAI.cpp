@@ -1521,21 +1521,9 @@ void PlayerbotAI::DoNextAction(bool min)
 
     bool minimal = !this->AllowActivity();
 
-    // When in bot ai mode and not in combat, the engine's trigger system
-    // (via TravelStrategy's "no travel target" trigger) will naturally
-    // fire ChooseTravelTargetAction when travel state is idle, selecting
-    // the highest relevance action for the bot.
-    if (_botAiMode && !bot->IsInCombat())
-    {
-        if (TravelTarget* target = AI_VALUE(TravelTarget*, "travel target"))
-        {
-            if (target->getTravelState() == TravelState::TRAVEL_STATE_IDLE)
-            {
-                // Engine will handle via trigger system - no explicit action needed
-            }
-        }
-    }
-
+    // When in bot ai mode, the engine's trigger system (via TravelStrategy's
+    // triggers) will naturally fire ChooseTravelTargetAction when travel state
+    // is idle, selecting the highest relevance action for the bot.
     currentEngine->DoNextAction(nullptr, 0, (minimal || min));
 
     if (minimal)
