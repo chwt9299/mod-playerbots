@@ -1914,6 +1914,39 @@ void PlayerbotAI::EnableBotAiMode()
     //   3. Register PriorityMultiplier for the non-combat engine
     ResetStrategies();
 
+    // Prune non-matching strategies so the bot focuses entirely on the
+    // chosen priority. Travel is always kept: any goal requires movement.
+    if (!_priorityStrategy.empty() && engines[BOT_STATE_NON_COMBAT])
+    {
+        if (_priorityStrategy == "quest")
+        {
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/grind, kept quest+travel");
+        }
+        else if (_priorityStrategy == "rpg")
+        {
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("travel");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned grind/travel, kept rpg");
+        }
+        else if (_priorityStrategy == "grind")
+        {
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("travel");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/travel, kept grind");
+        }
+        else if (_priorityStrategy == "travel")
+        {
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("new rpg");
+            engines[BOT_STATE_NON_COMBAT]->removeStrategy("grind");
+            LOG_INFO("playerbots", "EnableBotAiMode - pruned rpg/grind, kept travel");
+        }
+    }
+
     LOG_INFO("playerbots", "EnableBotAiMode complete - bot: {} priority: {}",
              bot->GetName(), _priorityStrategy);
 }
