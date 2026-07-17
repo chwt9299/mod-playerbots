@@ -183,24 +183,26 @@ static std::string EscapeFmt(std::string const& s)
 static std::string ReplacePlaceholders(std::string const& tmpl, std::string const& targetName, uint32 zoneId, std::string const& zoneName)
 {
     std::string result = tmpl;
-    // {target} -> 目标玩家名字
+    // {target} -> 目标玩家名字（浅蓝 |cFF40C0FF）
     if (!targetName.empty())
     {
         size_t pos = 0;
         while ((pos = result.find("{target}", pos)) != std::string::npos)
         {
-            result.replace(pos, 8, targetName);
-            pos += targetName.size();
+            std::string colored = "|cFF40C0FF" + targetName + "|r";
+            result.replace(pos, 8, colored);
+            pos += colored.size();
         }
     }
-    // {zone} -> 区域名字
+    // {zone} -> 区域名字（浅绿 |cFF20FF20）
     if (!zoneName.empty())
     {
         size_t pos = 0;
         while ((pos = result.find("{zone}", pos)) != std::string::npos)
         {
-            result.replace(pos, 6, zoneName);
-            pos += zoneName.size();
+            std::string colored = "|cFF20FF20" + zoneName + "|r";
+            result.replace(pos, 6, colored);
+            pos += colored.size();
         }
     }
     return result;
