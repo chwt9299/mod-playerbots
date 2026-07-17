@@ -8,7 +8,7 @@
 #define PLAYERBOTS_MOVETOTRAVELTARGETACTION_H
 
 #include "MovementActions.h"
-#include "WorldPosition.h"
+#include "TravelMgr.h"
 
 class PlayerbotAI;
 
