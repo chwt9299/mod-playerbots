@@ -79,6 +79,12 @@ bool TalkToQuestGiverAction::TurnInQuest(Quest const* quest, Object* questGiver,
 
     bot->PlayDistanceSound(621);
 
+    if (botAI->IsBotAiMode())
+    {
+        botAI->TellMasterNoFacing("完成任务 " + ChatHelper::FormatQuest(quest));
+        LOG_INFO("playerbots", "{} => Quest whisper: completed [{}]", bot->GetName(), quest->GetTitle());
+    }
+
     if (quest->GetRewChoiceItemsCount() == 0)
         RewardNoItem(quest, questGiver, out);
     else if (quest->GetRewChoiceItemsCount() == 1)

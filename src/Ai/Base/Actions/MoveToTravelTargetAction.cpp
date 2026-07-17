@@ -103,12 +103,23 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
     x += cos(angle) * maxDistance * mod;
     y += sin(angle) * maxDistance * mod;
 
-    bool canMove = false;
+    bool canMove = MoveTo(mapId, x, y, z, false, false, true);
 
-    if (bot->IsWithinLOS(x, y, z))
-        canMove = MoveNear(mapId, x, y, z, 0);
-    else
-        canMove = MoveTo(mapId, x, y, z, false, false);
+    if (canMove && botAI->IsBotAiMode())
+    {
+        WorldPosition targetPos(location);
+        if (!_lastReportedPosInitialized || _lastReportedPos.getMapId() != targetPos.getMapId() ||
+            _lastReportedPos.distance(targetPos) > 50.0f)
+        {
+            _lastReportedPos = targetPos;
+            _lastReportedPosInitialized = true;
+
+            std::ostringstream out;
+            out << "前往 " << target->getDestination()->getTitle();
+            botAI->TellMasterNoFacing(out.str());
+            LOG_INFO("playerbots", "{} => Travel whisper: {}", bot->GetName(), out.str());
+        }
+    }
 
     if (!canMove && !target->isForced())
     {
