@@ -74,6 +74,7 @@ struct NewRpgInfo
     float nearestMoveFarDis{FLT_MAX};
     uint32 stuckTs{0};
     uint32 stuckAttempts{0};
+    uint32 airborneTs{0};  // timestamp when bot first detected airborne (Z > terrain+10yd)
     WorldPosition moveFarPos;
     // END MOVE_FAR
 

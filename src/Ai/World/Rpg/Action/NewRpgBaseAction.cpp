@@ -67,6 +67,35 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
         return false;
     }
 
+    // Z-axis air detection: when pathfinding returns a straight-line
+    // interpolated path across cliffs/mountains, the bot can end up
+    // walking through the air. If the bot stays more than 10 yards
+    // above terrain for over 2 seconds, trigger a teleport recovery.
+    {
+        float terrainZ = bot->GetMap()->GetHeight(bot->GetPhaseMask(), bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ() + 5.0f);
+        if (terrainZ != INVALID_HEIGHT && terrainZ != VMAP_INVALID_HEIGHT_VALUE &&
+            bot->GetPositionZ() - terrainZ > 10.0f)
+        {
+            if (!botAI->rpgInfo.airborneTs)
+                botAI->rpgInfo.airborneTs = getMSTime();
+            else if (GetMSTimeDiffToNow(botAI->rpgInfo.airborneTs) > 2000)
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} airborne for >2s (Z={:.1f} terrain={:.1f}), triggering teleport",
+                    bot->GetName().c_str(), bot->GetPositionZ(), terrainZ);
+                botAI->rpgInfo.airborneTs = 0;
+                botAI->rpgInfo.stuckTs = getMSTime();
+                botAI->rpgInfo.stuckAttempts = 0;
+                botAI->rpgInfo.nearestMoveFarDis = FLT_MAX;
+                bot->NearTeleportTo(dest);
+                return true;
+            }
+        }
+        else
+        {
+            botAI->rpgInfo.airborneTs = 0;
+        }
+    }
+
     // stuck check
     float disToDest = bot->GetDistance(dest);
     // Require a meaningful improvement (5yd) to reset the stuck counter.

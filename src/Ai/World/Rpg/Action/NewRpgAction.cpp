@@ -5,9 +5,13 @@
 
 #include "AreaDefines.h"
 #include "BroadcastHelper.h"
+#include "CellImpl.h"
 #include "ChatHelper.h"
 #include "G3D/Vector2.h"
+#include "GameObject.h"
 #include "GossipDef.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "IVMapMgr.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
@@ -63,6 +67,15 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
     {
         case RPG_IDLE:
         {
+            // Enforce minimum idle duration to prevent instant re-roll into
+            // REST, which creates the IDLE(1 tick) -> REST -> IDLE(1 tick) -> ... loop.
+            if (!info.HasStatusPersisted(statusIdleMinDuration))
+            {
+                LOG_INFO("playerbots", "[New RPG] {} enforcing minimum IDLE duration ({}ms elapsed)",
+                    bot->GetName().c_str(), GetMSTimeDiffToNow(info.startT));
+                return true;
+            }
+
             if (!RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
                                       RPG_TRAVEL_FLIGHT, RPG_REST, RPG_OUTDOOR_PVP}))
             {
@@ -402,6 +415,64 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         data.lastReachPOI = getMSTime();
         return true;
     }
+
+    // Scan for quest-related GameObjects (chests, crates, ground items etc.)
+    // that grind strategy does not interact with. 15yd scan range.
+    {
+        std::list<GameObject*> goTargets;
+        AnyGameObjectInObjectRangeCheck goCheck(bot, 15.0f);
+        Acore::GameObjectListSearcher<AnyGameObjectInObjectRangeCheck> goSearcher(bot, goTargets, goCheck);
+        Cell::VisitObjects(bot, goSearcher, 15.0f);
+
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+        for (GameObject* go : goTargets)
+        {
+            if (!go || !go->IsInWorld() || !bot->IsWithinDistInMap(go, INTERACTION_DISTANCE))
+                continue;
+
+            // Only interact with quest-related types
+            if (go->GetGoType() != GAMEOBJECT_TYPE_QUESTGIVER &&
+                go->GetGoType() != GAMEOBJECT_TYPE_CHEST &&
+                go->GetGoType() != GAMEOBJECT_TYPE_GOOBER)
+                continue;
+
+            // Check if this GO is an objective of the current quest
+            bool isQuestObjective = false;
+            if (quest)
+            {
+                // RequiredNpcOrGo stores GO entries as negative values
+                for (uint8 i = 0; i < QUEST_OBJECTIVES_COUNT; ++i)
+                {
+                    int32 reqGo = quest->RequiredNpcOrGo[i];
+                    if (reqGo < 0 && uint32(-reqGo) == go->GetEntry())
+                    {
+                        isQuestObjective = true;
+                        break;
+                    }
+                }
+                if (!isQuestObjective)
+                    continue;
+            }
+
+            // Interact: GAMEOBJECT_TYPE_QUESTGIVER uses the quest menu
+            // pipeline; CHEST/GOOBER use the gameobject use opcode.
+            if (go->GetGoType() == GAMEOBJECT_TYPE_QUESTGIVER)
+            {
+                LOG_INFO("playerbots", "[New RPG] {} interacting with questgiver GO {} (entry {})",
+                    bot->GetName().c_str(), go->GetGUID().ToString().c_str(), go->GetEntry());
+                InteractWithNpcOrGameObjectForQuest(go->GetGUID());
+                return true;
+            }
+
+            LOG_INFO("playerbots", "[New RPG] {} interacting with quest objective GO {} (entry {}, type {})",
+                bot->GetName().c_str(), go->GetGUID().ToString().c_str(), go->GetEntry(), go->GetGoType());
+            WorldPacket packet(CMSG_GAMEOBJ_USE, 8);
+            packet << go->GetGUID();
+            bot->GetSession()->HandleGameObjectUseOpcode(packet);
+            return true;
+        }
+    }
+
     // stayed at this POI for more than 5 minutes
     if (GetMSTimeDiffToNow(data.lastReachPOI) >= poiStayTime)
     {
