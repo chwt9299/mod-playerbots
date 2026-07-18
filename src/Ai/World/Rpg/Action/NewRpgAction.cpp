@@ -320,6 +320,24 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         // the current objective is completed, clear and find a new objective later
         if (completed)
         {
+            // 任务进度播报
+            {
+                std::string progressMsg = "任务进度更新：《" + std::string(quest->GetTitle()) + "》—— ";
+                if (currentObjective < QUEST_OBJECTIVES_COUNT)
+                {
+                    uint32 killed = q_status.CreatureOrGOCount[currentObjective];
+                    uint32 required = quest->RequiredNpcOrGoCount[currentObjective];
+                    progressMsg += "已击杀 " + std::to_string(killed) + "/" + std::to_string(required) + " 只怪";
+                }
+                else if (currentObjective < QUEST_OBJECTIVES_COUNT + QUEST_ITEM_OBJECTIVES_COUNT)
+                {
+                    uint32 collected = q_status.ItemCount[currentObjective - QUEST_OBJECTIVES_COUNT];
+                    uint32 required = quest->RequiredItemCount[currentObjective - QUEST_OBJECTIVES_COUNT];
+                    progressMsg += "已收集 " + std::to_string(collected) + "/" + std::to_string(required) + " 个物品";
+                }
+                DoActionWhisper(progressMsg);
+            }
+
             data.lastReachPOI = 0;
             data.pos = WorldPosition();
             data.objectiveIdx = 0;

@@ -73,14 +73,33 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
     // The old 1yd threshold was small enough that bots oscillating back
     // and forth around an obstacle would keep "making progress" forever
     // and never trigger the teleport recovery below.
+
+    // 室内区域动态调整 stuck 阈值
+    bool isIndoor = bot->isInDungeon();
+    if (!isIndoor)
+    {
+        AreaTableEntry const* area = sAreaTableStore.LookupEntry(bot->GetAreaId());
+        if (area && (area->flags & AREA_FLAG_INSIDE))
+            isIndoor = true;
+    }
+    uint32 stuckThreshold = isIndoor ? 3 : 5;
+    uint32 stuckTimeThreshold = isIndoor ? 45 * IN_MILLISECONDS : 90 * IN_MILLISECONDS;
+
     if (disToDest + 5.0f < botAI->rpgInfo.nearestMoveFarDis)
     {
         botAI->rpgInfo.nearestMoveFarDis = disToDest;
         botAI->rpgInfo.stuckTs = getMSTime();
         botAI->rpgInfo.stuckAttempts = 0;
     }
-    else if (++botAI->rpgInfo.stuckAttempts >= 5 && GetMSTimeDiffToNow(botAI->rpgInfo.stuckTs) >= stuckTime)
+    else if (++botAI->rpgInfo.stuckAttempts >= stuckThreshold && GetMSTimeDiffToNow(botAI->rpgInfo.stuckTs) >= stuckTimeThreshold)
     {
+        // 室内连续 stuck 且距离目标较远时，先尝试随机移动跳出局限
+        if (isIndoor && botAI->rpgInfo.stuckAttempts >= stuckThreshold && disToDest > 100.0f)
+        {
+            MoveRandomNear(30.0f);
+            return true;
+        }
+
         // No meaningful progress toward dest for `stuckTime`: fall
         // back to teleporting directly so the bot can get on with
         // its RPG objective instead of oscillating indefinitely.
@@ -140,9 +159,12 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
 
     // Fallback: mmap couldn't route to the destination. Sample the
     // forward cone for a reachable stepping stone so the bot keeps
-    // moving and can try again from a new vantage point. Cap at 2
-    // samples — we already spent one PathGenerator call above and at
-    // 3000 bots every extra CalculatePath matters.
+    // moving and can try again from a new vantage point. When
+    // stuckAttempts >= 3, expand to full 360° with 4 samples to
+    // help bots escape tight indoor rooms where the exit may be
+    // behind or to the side.
+    float coneHalf = (botAI->rpgInfo.stuckAttempts >= 3) ? static_cast<float>(M_PI) : static_cast<float>(M_PI) / 2;
+    int maxSamples = (botAI->rpgInfo.stuckAttempts >= 3) ? 4 : 2;
     float minDelta = M_PI;
     const float x = bot->GetPositionX();
     const float y = bot->GetPositionY();
@@ -150,9 +172,9 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
     const float baseAngle = bot->GetAngle(&dest);
     float rx, ry, rz;
     bool found = false;
-    for (int attempt = 0; attempt < 2; ++attempt)
+    for (int attempt = 0; attempt < maxSamples; ++attempt)
     {
-        float delta = (rand_norm() - 0.5f) * static_cast<float>(M_PI);  // ±π/2, forward cone
+        float delta = (rand_norm() - 0.5f) * 2 * coneHalf;
         float sampleDis = (0.5f + rand_norm() * 0.5f) * pathFinderDis;
         float angle = baseAngle + delta;
         float dx = x + cos(angle) * sampleDis;
@@ -1284,9 +1306,18 @@ void NewRpgBaseAction::DoActionWhisper(std::string const& text)
 void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
 {
     NewRpgStatus newStatus = botAI->rpgInfo.GetStatus();
-    if (newStatus == oldStatus || newStatus == _lastWhisperedStatus)
+
+    // 心跳播报：仅当状态未变化时触发（状态变化时只重置计时器）
+    if (newStatus == oldStatus)
+    {
+        HeartbeatWhisper();
+        return;
+    }
+
+    if (newStatus == _lastWhisperedStatus)
         return;
     _lastWhisperedStatus = newStatus;
+    _lastHeartbeatTime = getMSTime();
 
     std::string msg;
     switch (newStatus)
@@ -1310,7 +1341,17 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
         {
             auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&botAI->rpgInfo.data);
             if (dataPtr && dataPtr->quest)
-                msg = "去做任务了——" + std::string(dataPtr->quest->GetTitle());
+            {
+                uint32 questId = dataPtr->quest->GetQuestId();
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string questTitle;
+                if (QuestLocale const* questLocale = sObjectMgr->GetQuestLocale(questId))
+                    if (locale < questLocale->Title.size() && !questLocale->Title[locale].empty())
+                        questTitle = questLocale->Title[locale];
+                if (questTitle.empty())
+                    questTitle = dataPtr->quest->GetTitle();
+                msg = "去做任务了——" + questTitle;
+            }
             else
                 msg = "去做任务了。";
             break;
@@ -1328,4 +1369,75 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
             return;
     }
     bot->Say(msg, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+}
+
+void NewRpgBaseAction::HeartbeatWhisper()
+{
+    uint32 now = getMSTime();
+    if (now - _lastHeartbeatTime < 10 * 1000)  // 10 秒
+        return;
+    _lastHeartbeatTime = now;
+
+    NewRpgStatus status = botAI->rpgInfo.GetStatus();
+    std::string msg;
+    switch (status)
+    {
+        case RPG_IDLE:
+            msg = "还在歇着，等会儿看看有啥可干。";
+            break;
+        case RPG_GO_GRIND:
+            msg = "还在打怪，手感不错！";
+            break;
+        case RPG_GO_CAMP:
+            msg = "还在扎营休整。";
+            break;
+        case RPG_WANDER_RANDOM:
+            msg = "还在闲逛中...";
+            break;
+        case RPG_WANDER_NPC:
+            msg = "还在找 NPC 接任务。";
+            break;
+        case RPG_DO_QUEST:
+        {
+            auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&botAI->rpgInfo.data);
+            if (dataPtr && dataPtr->quest)
+            {
+                uint32 questId = dataPtr->quest->GetQuestId();
+                const QuestStatusData& q_status = bot->getQuestStatusMap().at(questId);
+
+                // 统计未完成目标数
+                uint32 pendingCount = 0;
+                for (int i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
+                {
+                    if (uint32 npcOrGo = dataPtr->quest->RequiredNpcOrGo[i])
+                        if (q_status.CreatureOrGOCount[i] < dataPtr->quest->RequiredNpcOrGoCount[i])
+                            pendingCount++;
+                }
+                for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
+                {
+                    if (uint32 itemId = dataPtr->quest->RequiredItemId[i])
+                        if (q_status.ItemCount[i] < dataPtr->quest->RequiredItemCount[i])
+                            pendingCount++;
+                }
+
+                std::string questTitle = dataPtr->quest->GetTitle();
+                msg = "还在做任务「" + questTitle + "」，有 " + std::to_string(pendingCount) + " 个目标待完成。";
+            }
+            else
+                msg = "还在做任务...";
+            break;
+        }
+        case RPG_TRAVEL_FLIGHT:
+            msg = "还在坐飞机...";
+            break;
+        case RPG_REST:
+            msg = "还在休息回血。";
+            break;
+        case RPG_OUTDOOR_PVP:
+            msg = "还在野外干架！";
+            break;
+        default:
+            return;
+    }
+    bot->Say(msg, LANG_UNIVERSAL);
 }
