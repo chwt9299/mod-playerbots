@@ -120,6 +120,11 @@ bool SwitchToRangedTrigger::IsActive()
 bool SwitchToMeleeTrigger::IsActive()
 {
     Unit* target = AI_VALUE(Unit*, "current target");
+
+    // Force melee when hunter has no ammo in combat (deadlock prevention)
+    if (bot->getClass() == CLASS_HUNTER && !HunterHasAmmoTrigger(botAI).IsActive() && bot->IsInCombat() && target)
+        return true;
+
     return botAI->HasStrategy("ranged", BOT_STATE_COMBAT) && target &&
            (target->GetVictim() == bot &&
             ServerFacade::instance().IsDistanceLessOrEqualThan(AI_VALUE2(float, "distance", "current target"), 8.0f));

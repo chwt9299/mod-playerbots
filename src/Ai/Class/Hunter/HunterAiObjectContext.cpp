@@ -142,6 +142,7 @@ class HunterAiObjectContextInternal : public NamedObjectContext<Action>
 public:
     HunterAiObjectContextInternal()
     {
+        creators["auto refill ammo"] = &HunterAiObjectContextInternal::auto_refill_ammo;
         creators["auto shot"] = &HunterAiObjectContextInternal::auto_shot;
         creators["aimed shot"] = &HunterAiObjectContextInternal::aimed_shot;
         creators["chimera shot"] = &HunterAiObjectContextInternal::chimera_shot;
@@ -207,6 +208,7 @@ private:
     static Action* feign_death(PlayerbotAI* botAI) { return new CastFeignDeathAction(botAI); }
     static Action* trueshot_aura(PlayerbotAI* botAI) { return new CastTrueshotAuraAction(botAI); }
     static Action* track_humanoids(PlayerbotAI* botAI) { return new CastBuffSpellAction(botAI, "track humanoids"); }
+    static Action* auto_refill_ammo(PlayerbotAI* botAI) { return new AutoRefillAmmoAction(botAI); }
     static Action* auto_shot(PlayerbotAI* botAI) { return new CastAutoShotAction(botAI); }
     static Action* aimed_shot(PlayerbotAI* botAI) { return new CastAimedShotAction(botAI); }
     static Action* chimera_shot(PlayerbotAI* botAI) { return new CastChimeraShotAction(botAI); }
