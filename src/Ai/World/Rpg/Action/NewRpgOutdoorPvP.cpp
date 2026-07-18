@@ -59,6 +59,7 @@ bool NewRpgOutdoorPvpAction::Execute(Event)
             return true;
         }
         data.capturePointSpawnId = objective->m_capturePointSpawnId;
+        DoActionWhisper("发现据点了，冲！");
         LOG_DEBUG("playerbots","[NEW RPG] Bot {} selected OutDoorPvP target capturePointSpawnId {}", bot->GetName(), data.capturePointSpawnId);
     }
 

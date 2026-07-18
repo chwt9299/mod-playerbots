@@ -58,8 +58,8 @@ bool StartRpgDoQuestAction::Execute(Event event)
 bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
 {
     NewRpgInfo& info = botAI->rpgInfo;
-    NewRpgStatus status = info.GetStatus();
-    switch (status)
+    NewRpgStatus oldStatus = info.GetStatus();
+    switch (oldStatus)
     {
         case RPG_IDLE:
         {
@@ -68,6 +68,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             {
                 info.ChangeToRest();
             }
+            WhisperStatusIfChanged(oldStatus);
             return true;
         }
 
@@ -80,6 +81,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (bot->GetExactDist(originalPos) < 10.0f)
             {
                 info.ChangeToWanderRandom();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -93,6 +95,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (bot->GetExactDist(originalPos) < 10.0f)
             {
                 info.ChangeToWanderNpc();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -103,6 +106,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (info.HasStatusPersisted(statusWanderRandomDuration))
             {
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -112,6 +116,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (info.HasStatusPersisted(statusWanderNpcDuration))
             {
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -122,6 +127,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (info.HasStatusPersisted(statusDoQuestDuration))
             {
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -133,6 +139,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             {
                 // flight arrival
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -143,6 +150,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (info.HasStatusPersisted(statusRestDuration))
             {
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -152,6 +160,7 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (info.HasStatusPersisted(statusOutDoorPvPDuration))
             {
                 info.ChangeToIdle();
+                WhisperStatusIfChanged(oldStatus);
                 return true;
             }
             break;
@@ -168,6 +177,9 @@ bool NewRpgGoGrindAction::Execute(Event /*event*/)
         return true;
     if (auto* data = std::get_if<NewRpgInfo::GoGrind>(&botAI->rpgInfo.data))
     {
+        if (bot->GetExactDist(data->pos) < 30.0f)
+            DoActionWhisper("这地方不错，开始刷怪！");
+
         if (MoveFarTo(data->pos))
             return true;
         // Small nudge so the next tick's MoveFarTo starts from a
@@ -220,6 +232,7 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
         }
         data.npcOrGo = npcOrGo;
         data.lastReach = 0;
+        DoActionWhisper("看到个有趣的 NPC，过去瞧瞧。");
         return true;
     }
 
@@ -338,6 +351,7 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         data.lastReachPOI = 0;
         data.pos = pos;
         data.objectiveIdx = objectiveIdx;
+        DoActionWhisper("找到任务目标了，冲过去！");
     }
 
     if (bot->GetDistance(data.pos) > 10.0f && !data.lastReachPOI)

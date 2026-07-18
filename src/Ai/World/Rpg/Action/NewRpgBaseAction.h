@@ -58,6 +58,10 @@ protected:
     bool RandomChangeStatus(std::vector<NewRpgStatus> candidateStatus);
     bool CheckRpgStatusAvailable(NewRpgStatus status);
 
+    // Whisper helpers
+    void DoActionWhisper(std::string const& text);
+    void WhisperStatusIfChanged(NewRpgStatus oldStatus);
+
 protected:
     /* FOR MOVE FAR */
     const float pathFinderDis = 70.0f;
@@ -69,6 +73,10 @@ protected:
     // the teleport fires, but long enough that a genuine long
     // walk that is slowly making progress never triggers it.
     const uint32 stuckTime = 90 * 1000;
+
+    // Whisper state
+    NewRpgStatus _lastWhisperedStatus = RPG_STATUS_END;
+    inline static uint32 _lastActionWhisperTime = 0;
 };
 
 #endif
