@@ -1274,13 +1274,11 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
 
 void NewRpgBaseAction::DoActionWhisper(std::string const& text)
 {
-    if (!botAI->GetMaster())
-        return;
     uint32 now = getMSTime();
     if (now - _lastActionWhisperTime < 30000)
         return;
     _lastActionWhisperTime = now;
-    botAI->TellMasterNoFacing(text);
+    bot->Say(text, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
 }
 
 void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
@@ -1289,9 +1287,6 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
     if (newStatus == oldStatus || newStatus == _lastWhisperedStatus)
         return;
     _lastWhisperedStatus = newStatus;
-
-    if (!botAI->GetMaster())
-        return;
 
     std::string msg;
     switch (newStatus)
@@ -1332,5 +1327,5 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
         default:
             return;
     }
-    botAI->TellMasterNoFacing(msg);
+    bot->Say(msg, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
 }
