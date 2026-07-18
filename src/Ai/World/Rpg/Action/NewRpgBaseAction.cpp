@@ -1355,15 +1355,33 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
                         questTitle = questLocale->Title[locale];
                 if (questTitle.empty())
                     questTitle = dataPtr->quest->GetTitle();
-                msg = "去做任务了——" + questTitle;
+                msg = "接了任务「" + questTitle + "」，完成后找「" + GetQuestEnderName(questId, locale) + "」交任务。";
             }
             else
                 msg = "去做任务了。";
             break;
         }
         case RPG_TRAVEL_FLIGHT:
-            msg = "坐飞机跑路中...";
+        {
+            auto* flightPtr = std::get_if<NewRpgInfo::TravelFlight>(&botAI->rpgInfo.data);
+            if (flightPtr && !flightPtr->path.empty())
+            {
+                uint32 destNodeId = flightPtr->path.back();
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string destName;
+                if (TaxiNodesEntry const* node = sTaxiNodesStore.LookupEntry(destNodeId))
+                {
+                    if (node->name[locale] && node->name[locale][0] != '\0')
+                        destName = node->name[locale];
+                    else
+                        destName = node->name[0];
+                }
+                msg = "坐飞机飞往「" + destName + "」！";
+            }
+            else
+                msg = "坐飞机跑路中...";
             break;
+        }
         case RPG_REST:
             msg = "坐下来休息一下，恢复恢复。";
             break;
@@ -1374,6 +1392,38 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
             return;
     }
     bot->Say(msg, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+}
+
+// 根据 questId 反向查找交任务 NPC 的本地化名称
+static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
+{
+    QuestRelations const* relations = sObjectMgr->GetCreatureQuestInvolvedRelations();
+    for (auto const& [creature_entry, qId] : *relations)
+    {
+        if (qId == questId)
+        {
+            if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(creature_entry))
+                if (locale < creatureLocale->Name.size() && !creatureLocale->Name[locale].empty())
+                    return creatureLocale->Name[locale];
+            if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(creature_entry))
+                return ct->Name;
+            break;
+        }
+    }
+    return "任务发布者";
+}
+
+static std::string GetZoneName(Player* bot)
+{
+    uint32 zoneId = bot->GetZoneId();
+    if (AreaTableEntry const* zone = sAreaTableStore.LookupEntry(zoneId))
+    {
+        LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+        if (zone->area_name[locale] && zone->area_name[locale][0] != '\0')
+            return zone->area_name[locale];
+        return zone->area_name[0];
+    }
+    return "未知区域";
 }
 
 void NewRpgBaseAction::HeartbeatWhisper()
@@ -1390,20 +1440,39 @@ void NewRpgBaseAction::HeartbeatWhisper()
     switch (status)
     {
         case RPG_IDLE:
-            msg = "还在歇着，等会儿看看有啥可干。";
+            msg = "在「" + GetZoneName(bot) + "」歇着，等会儿看看有啥可干。";
             break;
         case RPG_GO_GRIND:
-            msg = "还在打怪，手感不错！";
+            msg = "在「" + GetZoneName(bot) + "」打怪，手感不错！";
             break;
         case RPG_GO_CAMP:
-            msg = "还在扎营休整。";
+            msg = "在「" + GetZoneName(bot) + "」扎营休整。";
             break;
         case RPG_WANDER_RANDOM:
-            msg = "还在闲逛中...";
+            msg = "在「" + GetZoneName(bot) + "」闲逛中...";
             break;
         case RPG_WANDER_NPC:
-            msg = "还在找 NPC 接任务。";
+        {
+            auto* wanderPtr = std::get_if<NewRpgInfo::WanderNpc>(&botAI->rpgInfo.data);
+            if (wanderPtr && wanderPtr->npcOrGo)
+            {
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string npcName;
+                if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(wanderPtr->npcOrGo.GetEntry()))
+                {
+                    npcName = ct->Name;
+                    if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(wanderPtr->npcOrGo.GetEntry()))
+                        if (locale < creatureLocale->Name.size() && !creatureLocale->Name[locale].empty())
+                            npcName = creatureLocale->Name[locale];
+                }
+                if (npcName.empty())
+                    npcName = "NPC";
+                msg = "正走向「" + npcName + "」接任务。";
+            }
+            else
+                msg = "在「" + GetZoneName(bot) + "」寻找可接任务的 NPC。";
             break;
+        }
         case RPG_DO_QUEST:
         {
             auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&botAI->rpgInfo.data);
@@ -1441,7 +1510,7 @@ void NewRpgBaseAction::HeartbeatWhisper()
                 }
 
                 if (pendingCount == 0)
-                    msg = "还在做任务「" + questTitle + "」，所有目标已完成，可以回去交任务了！";
+                    msg = "还在做任务「" + questTitle + "」，所有目标已完成，回去找「" + GetQuestEnderName(questId, locale) + "」交任务吧！";
                 else if (pendingCount == 1)
                     msg = "还在做任务「" + questTitle + "」，还有 1 个子任务未完成。";
                 else
@@ -1452,13 +1521,33 @@ void NewRpgBaseAction::HeartbeatWhisper()
             break;
         }
         case RPG_TRAVEL_FLIGHT:
-            msg = "还在坐飞机...";
+        {
+            auto* flightPtr = std::get_if<NewRpgInfo::TravelFlight>(&botAI->rpgInfo.data);
+            if (flightPtr && !flightPtr->path.empty())
+            {
+                uint32 destNodeId = flightPtr->path.back();
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string destName;
+                if (TaxiNodesEntry const* node = sTaxiNodesStore.LookupEntry(destNodeId))
+                {
+                    if (node->name[locale] && node->name[locale][0] != '\0')
+                        destName = node->name[locale];
+                    else
+                        destName = node->name[0];
+                }
+                if (destName.empty())
+                    destName = "目的地";
+                msg = "还在飞往「" + destName + "」的路上...";
+            }
+            else
+                msg = "还在坐飞机...";
             break;
+        }
         case RPG_REST:
-            msg = "还在休息回血。";
+            msg = "在「" + GetZoneName(bot) + "」休息回血。";
             break;
         case RPG_OUTDOOR_PVP:
-            msg = "还在野外干架！";
+            msg = "在「" + GetZoneName(bot) + "」野外干架！";
             break;
         default:
             return;
