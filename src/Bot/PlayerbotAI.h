@@ -581,6 +581,7 @@ public:
     bool IsBotAiMode() const { return _botAiMode; }
     void SetBotAiMode(bool mode) { _botAiMode = mode; }
     void EnableBotAiMode();
+    void RefillAmmo();
     std::string GetPriorityStrategy() const { return _priorityStrategy; }
     void SetPriorityStrategy(const std::string& s) { _priorityStrategy = s; }
 

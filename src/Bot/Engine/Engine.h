@@ -119,6 +119,7 @@ protected:
     std::string lastAction;
     uint32 strategyTypeMask;
     bool hasTargetExclusions = false;
+    uint32 _consecutiveFailures = 0;
     NamedObjectFactoryList<ActionNode> actionNodeFactories;
 };
 

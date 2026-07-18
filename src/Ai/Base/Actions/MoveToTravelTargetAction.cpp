@@ -108,7 +108,7 @@ bool MoveToTravelTargetAction::Execute(Event /*event*/)
     if (canMove && botAI->IsBotAiMode())
     {
         WorldPosition targetPos(location);
-        if (!_lastReportedPosInitialized || _lastReportedPos.getMapId() != targetPos.getMapId() ||
+        if (!_lastReportedPosInitialized || _lastReportedPos.GetMapId() != targetPos.GetMapId() ||
             _lastReportedPos.distance(targetPos) > 50.0f)
         {
             _lastReportedPos = targetPos;

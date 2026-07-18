@@ -247,7 +247,31 @@ bool Engine::DoNextAction(Unit* /*unit*/, uint32 /*depth*/, bool minimal)
     }
 
     if (!actionExecuted)
-        LogAction("no actions executed");
+    {
+        _consecutiveFailures++;
+        if (_consecutiveFailures >= 5)
+        {
+            LogAction("deadlock detected (%u consecutive failures), triggering flee",
+                      _consecutiveFailures);
+            _consecutiveFailures = 0;
+
+            // Push a "flee" action to escape the deadlock
+            ActionNode* fleeNode = CreateActionNode("flee");
+            if (fleeNode)
+            {
+                InitializeAction(fleeNode);
+                queue.Push(new ActionBasket(fleeNode, 100.0f, true, event));
+            }
+        }
+        else
+        {
+            LogAction("no actions executed");
+        }
+    }
+    else
+    {
+        _consecutiveFailures = 0;
+    }
 
     queue.RemoveExpired();
 

@@ -29,4 +29,13 @@ public:
     bool isUseful() override;
 };
 
+class AutoRefillAmmoAction : public Action
+{
+public:
+    AutoRefillAmmoAction(PlayerbotAI* botAI) : Action(botAI, "auto refill ammo") {}
+
+    bool Execute(Event event) override;
+    bool isUseful() override;
+};
+
 #endif

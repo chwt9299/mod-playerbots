@@ -22,6 +22,11 @@ bool SwitchToMeleeAction::isUseful()
     if (bot->getClass() == CLASS_HUNTER)
     {
         Unit* target = AI_VALUE(Unit*, "current target");
+
+        // Force melee when out of ammo in combat (deadlock prevention)
+        if (!AI_VALUE2(uint32, "item count", "ammo") && bot->IsInCombat() && target)
+            return true;
+
         time_t lastFlee = AI_VALUE(LastMovement&, "last movement").lastFlee;
         return botAI->HasStrategy("ranged", BOT_STATE_COMBAT) &&
                ((bot->IsInCombat() && target &&
@@ -53,4 +58,15 @@ bool SwitchToRangedAction::isUseful()
     }
 
     return botAI->HasStrategy("close", BOT_STATE_COMBAT);
+}
+
+bool AutoRefillAmmoAction::Execute(Event event)
+{
+    botAI->RefillAmmo();
+    return true;
+}
+
+bool AutoRefillAmmoAction::isUseful()
+{
+    return botAI->IsBotAiMode();
 }

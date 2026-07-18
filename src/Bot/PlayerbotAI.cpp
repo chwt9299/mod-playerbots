@@ -1950,6 +1950,53 @@ void PlayerbotAI::EnableBotAiMode()
              bot->GetName(), _priorityStrategy);
 }
 
+void PlayerbotAI::RefillAmmo()
+{
+    uint8 const botClass = bot->getClass();
+    if (botClass != CLASS_HUNTER)
+        return;
+
+    Item const* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+    if (!item)
+        return;
+
+    ItemTemplate const* proto = item->GetTemplate();
+    if (!proto)
+        return;
+
+    uint32 subClass = 0;
+    switch (proto->SubClass)
+    {
+        case ITEM_SUBCLASS_WEAPON_GUN:
+            subClass = ITEM_SUBCLASS_BULLET;
+            break;
+        case ITEM_SUBCLASS_WEAPON_BOW:
+        case ITEM_SUBCLASS_WEAPON_CROSSBOW:
+            subClass = ITEM_SUBCLASS_ARROW;
+            break;
+        default:
+            return;
+    }
+
+    uint32 entry = sRandomItemMgr.GetAmmo(bot->GetLevel(), subClass);
+    if (!entry)
+        return;
+
+    uint32 count = bot->GetItemCount(entry);
+    uint32 maxCount = 6000;
+
+    if (count < maxCount)
+    {
+        uint32 toAdd = maxCount - count;
+        LOG_INFO("playerbots", "Bot {} auto-refilled ammo in combat ({}x item {}, {} remaining before refill)",
+                 bot->GetName(), toAdd, entry, count);
+        if (Item* newItem = bot->StoreNewItemInBestSlots(entry, toAdd))
+            newItem->AddToUpdateQueueOf(bot);
+    }
+
+    bot->SetAmmo(entry);
+}
+
 bool PlayerbotAI::IsRanged(Player* player, bool bySpec)
 {
     PlayerbotAI* botAi = GET_PLAYERBOT_AI(player);

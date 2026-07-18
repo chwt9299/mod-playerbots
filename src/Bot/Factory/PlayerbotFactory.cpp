@@ -3633,6 +3633,12 @@ void PlayerbotFactory::InitAmmo()
     if (botClass != CLASS_HUNTER && botClass != CLASS_ROGUE && botClass != CLASS_WARRIOR)
         return;
 
+    if (botClass == CLASS_HUNTER)
+    {
+        GET_PLAYERBOT_AI(bot)->RefillAmmo();
+        return;
+    }
+
     Item const* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
     if (!item)
         return;
