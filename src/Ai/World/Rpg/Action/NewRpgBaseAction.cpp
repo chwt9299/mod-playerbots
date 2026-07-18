@@ -1296,6 +1296,8 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
 
 void NewRpgBaseAction::DoActionWhisper(std::string const& text)
 {
+    if (!botAI->GetMaster())
+        return;
     uint32 now = getMSTime();
     if (now - _lastActionWhisperTime < 30000)
         return;
@@ -1306,6 +1308,8 @@ void NewRpgBaseAction::DoActionWhisper(std::string const& text)
 
 void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
 {
+    if (!botAI->GetMaster())
+        return;
     NewRpgStatus newStatus = botAI->rpgInfo.GetStatus();
 
     // 心跳播报：仅当状态未变化时触发（状态变化时只重置计时器）
@@ -1374,6 +1378,8 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
 
 void NewRpgBaseAction::HeartbeatWhisper()
 {
+    if (!botAI->GetMaster())
+        return;
     uint32 now = getMSTime();
     if (now - _lastHeartbeatTime < 10 * 1000)  // 10 秒
         return;
@@ -1434,7 +1440,12 @@ void NewRpgBaseAction::HeartbeatWhisper()
                     }
                 }
 
-                msg = "还在做任务「" + questTitle + "」，有 " + std::to_string(pendingCount) + " 个目标待完成。";
+                if (pendingCount == 0)
+                    msg = "还在做任务「" + questTitle + "」，所有目标已完成，可以回去交任务了！";
+                else if (pendingCount == 1)
+                    msg = "还在做任务「" + questTitle + "」，还有 1 个子任务未完成。";
+                else
+                    msg = "还在做任务「" + questTitle + "」，还有 " + std::to_string(pendingCount) + " 个子任务未完成。";
             }
             else
                 msg = "还在做任务...";
