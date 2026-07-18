@@ -55,6 +55,8 @@ const std::set<uint32> MindSearChannelCheckTrigger::MIND_SEAR_SPELL_IDS = {
 bool MindSearChannelCheckTrigger::IsActive()
 {
     Player* bot = botAI->GetBot();
+    if (!bot)
+        return false;
 
     // Check if the bot is channeling a spell
     if (Spell* spell = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
