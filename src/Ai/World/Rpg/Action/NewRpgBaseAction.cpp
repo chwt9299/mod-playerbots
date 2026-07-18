@@ -1264,10 +1264,10 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
             return true;
         case RPG_WANDER_RANDOM:
         {
-            // AI mode (quest) should not wander randomly — focus on quest objectives
-            if (botAI->IsBotAiMode())
+            // In quest mode: block wander-random, focus on quest objectives
+            if (botAI->GetPriorityStrategy() == "quest")
             {
-                LOG_INFO("playerbots.rpg", "Bot {} CheckRpgStatusAvailable: WANDER_RANDOM blocked in AI mode",
+                LOG_INFO("playerbots.rpg", "Bot {} CheckRpgStatusAvailable: WANDER_RANDOM blocked in quest mode",
                          bot->GetName().c_str());
                 return false;
             }
@@ -1277,10 +1277,10 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
         }
         case RPG_GO_GRIND:
         {
-            // AI mode (quest) should not go grinding — focus on quest objectives
-            if (botAI->IsBotAiMode())
+            // In quest mode: block grind, focus on quest objectives
+            if (botAI->GetPriorityStrategy() == "quest")
             {
-                LOG_INFO("playerbots.rpg", "Bot {} CheckRpgStatusAvailable: GO_GRIND blocked in AI mode",
+                LOG_INFO("playerbots.rpg", "Bot {} CheckRpgStatusAvailable: GO_GRIND blocked in quest mode",
                          bot->GetName().c_str());
                 return false;
             }
