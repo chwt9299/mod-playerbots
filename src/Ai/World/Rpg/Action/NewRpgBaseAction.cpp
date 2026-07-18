@@ -43,30 +43,13 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
         botAI->rpgInfo.SetMoveFarTo(dest);
     }
 
-    // performance optimization
-    if (IsWaitingForLastMove(MovementPriority::MOVEMENT_NORMAL))
-    {
-        return false;
-    }
-
-    // Let previously committed movement finish before recomputing.
-    //
-    // MoveTo internally caps its stored delay at maxWaitForMove
-    // (default 5s), but a long path (200+ yd routed around a
-    // mountain) takes 30+ seconds to walk. After 5s
-    // IsWaitingForLastMove returns false and MoveFarTo re-enters.
-    // Without this gate, DoMovePoint would call mm->Clear() and
-    // reissue MovePoint from the new bot position — and from a new
-    // position mmap's partial-path endpoint often differs, so the
-    // bot gets clobbered mid-walk and ends up oscillating (e.g.
-    // cave entrance -> inside cave -> cave entrance -> mountain
-    // base -> cave entrance...) around an unreachable destination.
-    //
-    // If the bot is still actively walking toward its last
-    // committed point on the same map, just let the current spline
-    // finish. The stuck counter below continues to track real
-    // progress toward dest and triggers teleport recovery if the
-    // committed paths genuinely aren't closing the gap.
+    // If the bot is still actively walking toward its last committed
+    // point on the same map, let the current spline finish. Check this
+    // BEFORE IsWaitingForLastMove so the 5s throttle doesn't block the
+    // quest action every tick while the bot is mid-walk. The stuck
+    // counter below continues to track real progress toward dest and
+    // triggers teleport recovery if the committed paths aren't closing
+    // the gap.
     {
         LastMovement& lastMove = AI_VALUE(LastMovement&, "last movement");
         if (bot->isMoving() && lastMove.lastMoveToMapId == bot->GetMapId())
@@ -75,6 +58,13 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
             if (remaining > 10.0f)
                 return true;
         }
+    }
+
+    // performance optimization: throttle re-path attempts when the bot
+    // has no committed movement in progress
+    if (IsWaitingForLastMove(MovementPriority::MOVEMENT_NORMAL))
+    {
+        return false;
     }
 
     // stuck check
@@ -227,6 +217,20 @@ bool NewRpgBaseAction::MoveWorldObjectTo(ObjectGuid guid, float distance)
 
 bool NewRpgBaseAction::MoveRandomNear(float moveStep, MovementPriority priority, WorldObject*)
 {
+    // While the bot is still walking toward a previously committed
+    // move, don't interrupt it with a new random move. Same pattern as
+    // MoveFarTo: check isMoving() BEFORE IsWaitingForLastMove so the
+    // throttle doesn't make the quest action spin in FAILED.
+    {
+        LastMovement& lastMove = AI_VALUE(LastMovement&, "last movement");
+        if (bot->isMoving() && lastMove.lastMoveToMapId == bot->GetMapId())
+        {
+            float remaining = bot->GetExactDist(lastMove.lastMoveToX, lastMove.lastMoveToY, lastMove.lastMoveToZ);
+            if (remaining > 5.0f)
+                return true;
+        }
+    }
+
     if (IsWaitingForLastMove(priority))
         return false;
 
