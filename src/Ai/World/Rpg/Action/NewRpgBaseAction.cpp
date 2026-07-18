@@ -75,7 +75,7 @@ bool NewRpgBaseAction::MoveFarTo(WorldPosition dest)
     // and never trigger the teleport recovery below.
 
     // 室内区域动态调整 stuck 阈值
-    bool isIndoor = bot->isInDungeon();
+    bool isIndoor = bot->GetMap()->IsDungeon();
     if (!isIndoor)
     {
         AreaTableEntry const* area = sAreaTableStore.LookupEntry(bot->GetAreaId());
@@ -1301,6 +1301,7 @@ void NewRpgBaseAction::DoActionWhisper(std::string const& text)
         return;
     _lastActionWhisperTime = now;
     bot->Say(text, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
+    _lastHeartbeatTime = getMSTime();  // 重置心跳计时器，避免播完重要事件后立刻心跳
 }
 
 void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
