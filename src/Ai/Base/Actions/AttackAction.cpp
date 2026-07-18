@@ -18,6 +18,13 @@
 #include "Unit.h"
 #include "WaitForAttackStrategy.h"
 
+// Suppress TellError when bot is in full-auto AI mode to avoid spam
+static inline void TellErrorIfVerbose(PlayerbotAI* botAI, std::string const& text)
+{
+    if (!botAI->IsBotAiMode())
+        botAI->TellError(text);
+}
+
 bool AttackAction::Execute(Event /*event*/)
 {
     Unit* target = GetTarget();
@@ -59,7 +66,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (!target)
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_no_target_error", "I have no target", {}));
 
         return false;
@@ -68,7 +75,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (!target->IsInWorld())
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_target_not_in_world_error",
                 "%target is no longer in the world.",
                 {{"%target", target->GetName()}}));
@@ -80,7 +87,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
         bot->HasUnitState(UNIT_STATE_IN_FLIGHT))
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_in_flight_error", "I cannot attack in flight", {}));
 
         return false;
@@ -93,7 +100,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
         sPlayerbotAIConfig.IsPvpProhibited(target->GetZoneId(), target->GetAreaId())))
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_pvp_prohibited_error",
                 "I cannot attack other players in PvP prohibited areas.",
                 {}));
@@ -104,7 +111,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (bot->IsFriendlyTo(target))
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_target_friendly_error",
                 "%target is friendly to me.",
                 {{"%target", target->GetName()}}));
@@ -115,7 +122,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (target->isDead())
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_target_dead_error",
                 "%target is dead.",
                 {{"%target", target->GetName()}}));
@@ -126,7 +133,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (!bot->IsWithinLOSInMap(target))
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_target_not_in_sight_error",
                 "%target is not in my sight.",
                 {{"%target", target->GetName()}}));
@@ -149,7 +156,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (sameTarget && inCombat && sameAttackMode)
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_already_attacking_error",
                 "I am already attacking %target.",
                 {{"%target", target->GetName()}}));
@@ -160,7 +167,7 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     if (!bot->IsValidAttackTarget(target))
     {
         if (verbose)
-            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            TellErrorIfVerbose(botAI, PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "attack_invalid_target_error", "I cannot attack an invalid target.", {}));
 
         return false;

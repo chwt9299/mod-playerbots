@@ -1271,3 +1271,66 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
     }
     return false;
 }
+
+void NewRpgBaseAction::DoActionWhisper(std::string const& text)
+{
+    if (!botAI->GetMaster())
+        return;
+    uint32 now = getMSTime();
+    if (now - _lastActionWhisperTime < 30000)
+        return;
+    _lastActionWhisperTime = now;
+    botAI->TellMasterNoFacing(text);
+}
+
+void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
+{
+    NewRpgStatus newStatus = botAI->rpgInfo.GetStatus();
+    if (newStatus == oldStatus || newStatus == _lastWhisperedStatus)
+        return;
+    _lastWhisperedStatus = newStatus;
+
+    if (!botAI->GetMaster())
+        return;
+
+    std::string msg;
+    switch (newStatus)
+    {
+        case RPG_IDLE:
+            msg = "我先歇会儿，等等再看干啥。";
+            break;
+        case RPG_GO_GRIND:
+            msg = "去打怪升级咯！";
+            break;
+        case RPG_GO_CAMP:
+            msg = "去扎营休息一下。";
+            break;
+        case RPG_WANDER_RANDOM:
+            msg = "随便逛逛，看看这片地儿。";
+            break;
+        case RPG_WANDER_NPC:
+            msg = "去找 NPC 聊聊，说不定有任务。";
+            break;
+        case RPG_DO_QUEST:
+        {
+            auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&botAI->rpgInfo.data);
+            if (dataPtr && dataPtr->quest)
+                msg = "去做任务了——" + std::string(dataPtr->quest->GetTitle());
+            else
+                msg = "去做任务了。";
+            break;
+        }
+        case RPG_TRAVEL_FLIGHT:
+            msg = "坐飞机跑路中...";
+            break;
+        case RPG_REST:
+            msg = "坐下来休息一下，恢复恢复。";
+            break;
+        case RPG_OUTDOOR_PVP:
+            msg = "有架打！去凑热闹！";
+            break;
+        default:
+            return;
+    }
+    botAI->TellMasterNoFacing(msg);
+}
