@@ -324,7 +324,15 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         {
             // 任务进度播报
             {
-                std::string progressMsg = "任务进度更新：《" + std::string(quest->GetTitle()) + "》—— ";
+                uint32 localeQuestId = quest->GetQuestId();
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string localeQuestTitle;
+                if (QuestLocale const* questLocale = sObjectMgr->GetQuestLocale(localeQuestId))
+                    if (locale < questLocale->Title.size() && !questLocale->Title[locale].empty())
+                        localeQuestTitle = questLocale->Title[locale];
+                if (localeQuestTitle.empty())
+                    localeQuestTitle = quest->GetTitle();
+                std::string progressMsg = "任务进度更新：《" + localeQuestTitle + "》—— ";
                 if (currentObjective < QUEST_OBJECTIVES_COUNT)
                 {
                     uint32 killed = q_status.CreatureOrGOCount[currentObjective];
