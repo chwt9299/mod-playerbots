@@ -7,6 +7,7 @@
 #include "HunterAiObjectContext.h"
 
 #include "BeastMasteryHunterStrategy.h"
+#include "CombatActions.h"
 #include "GenericHunterNonCombatStrategy.h"
 #include "GenericHunterStrategy.h"
 #include "HunterActions.h"

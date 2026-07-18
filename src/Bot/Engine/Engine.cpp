@@ -151,6 +151,7 @@ bool Engine::DoNextAction(Unit* /*unit*/, uint32 /*depth*/, bool minimal)
     bool actionExecuted = false;
     ActionBasket* basket = nullptr;
     time_t currentTime = time(nullptr);
+    Event event;
 
     // Update triggers and push default actions
     ProcessTriggers(minimal);
@@ -171,7 +172,7 @@ bool Engine::DoNextAction(Unit* /*unit*/, uint32 /*depth*/, bool minimal)
         if (minimal && (relevance < 100))
             continue;
 
-        Event event = basket->getEvent();
+        event = basket->getEvent();
         ActionNode* actionNode = queue.Pop();  // NOTE: Pop() deletes basket
         Action* action = InitializeAction(actionNode);
 

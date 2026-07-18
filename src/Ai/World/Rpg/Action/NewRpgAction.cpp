@@ -344,10 +344,13 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
     {
         if (MoveFarTo(data.pos))
             return true;
-        // Long-range sampler couldn't land a candidate — nudge the
-        // bot a short distance so the next tick retries from a
-        // different position instead of sitting idle.
-        return MoveRandomNear(10.0f);
+        if (MoveRandomNear(10.0f))
+            return true;
+        // Neither MoveFarTo nor MoveRandomNear could commit a move
+        // (throttle / pathing failure).  Wait a short moment instead
+        // of returning false so the action counts as "executed" and
+        // doesn't accumulate toward deadlock detection.
+        return ForceToWait(500);
     }
     // Now we are near the quest objective
     // kill mobs and looting quest should be done automatically by grind strategy
@@ -397,8 +400,11 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
     // At the POI: keep the bot actively placed but avoid large
     // random 20yd hops that look like pacing back and forth. A small
     // ~8yd wander reads as the bot looking around while grind/loot
-    // strategies do their work.
-    return MoveRandomNear(8.0f);
+    // strategies do their work.  If even the 8yd wander fails, use
+    // a short ForceToWait so the action stays "executed".
+    if (!MoveRandomNear(8.0f))
+        return ForceToWait(500);
+    return true;
 }
 
 bool NewRpgDoQuestAction::DoCompletedQuest(NewRpgInfo::DoQuest& data)

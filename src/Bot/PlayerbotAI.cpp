@@ -41,6 +41,7 @@
 #include "Player.h"
 #include "PlayerbotTextMgr.h"
 #include "PlayerbotAIConfig.h"
+#include "RandomItemMgr.h"
 #include "PlayerbotMgr.h"
 #include "PlayerbotGuildMgr.h"
 #include "Playerbots.h"
@@ -1978,8 +1979,7 @@ void PlayerbotAI::RefillAmmo()
         uint32 toAdd = maxCount - count;
         LOG_INFO("playerbots", "Bot {} auto-refilled ammo in combat ({}x item {}, {} remaining before refill)",
                  bot->GetName(), toAdd, entry, count);
-        if (Item* newItem = bot->StoreNewItemInBestSlots(entry, toAdd))
-            newItem->AddToUpdateQueueOf(bot);
+        bot->StoreNewItemInBestSlots(entry, toAdd);
     }
 
     bot->SetAmmo(entry);
