@@ -1306,6 +1306,38 @@ void NewRpgBaseAction::DoActionWhisper(std::string const& text)
     _lastHeartbeatTime = getMSTime();  // 重置心跳计时器，避免播完重要事件后立刻心跳
 }
 
+// 根据 questId 反向查找交任务 NPC 的本地化名称
+static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
+{
+    QuestRelations const* relations = sObjectMgr->GetCreatureQuestInvolvedRelationMap();
+    for (auto const& [creature_entry, qId] : *relations)
+    {
+        if (qId == questId)
+        {
+            if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(creature_entry))
+                if (locale < creatureLocale->Name.size() && !creatureLocale->Name[locale].empty())
+                    return creatureLocale->Name[locale];
+            if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(creature_entry))
+                return ct->Name;
+            break;
+        }
+    }
+    return "任务发布者";
+}
+
+static std::string GetZoneName(Player* bot)
+{
+    uint32 zoneId = bot->GetZoneId();
+    if (AreaTableEntry const* zone = sAreaTableStore.LookupEntry(zoneId))
+    {
+        LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+        if (zone->area_name[locale] && zone->area_name[locale][0] != '\0')
+            return zone->area_name[locale];
+        return zone->area_name[0];
+    }
+    return "未知区域";
+}
+
 void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
 {
     if (!botAI->GetMaster())
@@ -1392,38 +1424,6 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
             return;
     }
     bot->Say(msg, (bot->GetTeamId() == TEAM_ALLIANCE ? LANG_COMMON : LANG_ORCISH));
-}
-
-// 根据 questId 反向查找交任务 NPC 的本地化名称
-static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
-{
-    QuestRelations const* relations = sObjectMgr->GetCreatureQuestInvolvedRelations();
-    for (auto const& [creature_entry, qId] : *relations)
-    {
-        if (qId == questId)
-        {
-            if (CreatureLocale const* creatureLocale = sObjectMgr->GetCreatureLocale(creature_entry))
-                if (locale < creatureLocale->Name.size() && !creatureLocale->Name[locale].empty())
-                    return creatureLocale->Name[locale];
-            if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(creature_entry))
-                return ct->Name;
-            break;
-        }
-    }
-    return "任务发布者";
-}
-
-static std::string GetZoneName(Player* bot)
-{
-    uint32 zoneId = bot->GetZoneId();
-    if (AreaTableEntry const* zone = sAreaTableStore.LookupEntry(zoneId))
-    {
-        LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
-        if (zone->area_name[locale] && zone->area_name[locale][0] != '\0')
-            return zone->area_name[locale];
-        return zone->area_name[0];
-    }
-    return "未知区域";
 }
 
 void NewRpgBaseAction::HeartbeatWhisper()
