@@ -1404,24 +1404,36 @@ void NewRpgBaseAction::HeartbeatWhisper()
             if (dataPtr && dataPtr->quest)
             {
                 uint32 questId = dataPtr->quest->GetQuestId();
-                const QuestStatusData& q_status = bot->getQuestStatusMap().at(questId);
 
-                // 统计未完成目标数
+                // 任务名本地化（复用 locale 查询逻辑）
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string questTitle;
+                if (QuestLocale const* questLocale = sObjectMgr->GetQuestLocale(questId))
+                    if (locale < questLocale->Title.size() && !questLocale->Title[locale].empty())
+                        questTitle = questLocale->Title[locale];
+                if (questTitle.empty())
+                    questTitle = dataPtr->quest->GetTitle();
+
+                // 用 find() 代替 at()，防止 quest 已移除时崩溃
                 uint32 pendingCount = 0;
-                for (int i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
+                auto it = bot->getQuestStatusMap().find(questId);
+                if (it != bot->getQuestStatusMap().end())
                 {
-                    if (uint32 npcOrGo = dataPtr->quest->RequiredNpcOrGo[i])
-                        if (q_status.CreatureOrGOCount[i] < dataPtr->quest->RequiredNpcOrGoCount[i])
-                            pendingCount++;
-                }
-                for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
-                {
-                    if (uint32 itemId = dataPtr->quest->RequiredItemId[i])
-                        if (q_status.ItemCount[i] < dataPtr->quest->RequiredItemCount[i])
-                            pendingCount++;
+                    const QuestStatusData& q_status = it->second;
+                    for (int i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
+                    {
+                        if (uint32 npcOrGo = dataPtr->quest->RequiredNpcOrGo[i])
+                            if (q_status.CreatureOrGOCount[i] < dataPtr->quest->RequiredNpcOrGoCount[i])
+                                pendingCount++;
+                    }
+                    for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
+                    {
+                        if (uint32 itemId = dataPtr->quest->RequiredItemId[i])
+                            if (q_status.ItemCount[i] < dataPtr->quest->RequiredItemCount[i])
+                                pendingCount++;
+                    }
                 }
 
-                std::string questTitle = dataPtr->quest->GetTitle();
                 msg = "还在做任务「" + questTitle + "」，有 " + std::to_string(pendingCount) + " 个目标待完成。";
             }
             else
