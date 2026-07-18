@@ -1310,7 +1310,17 @@ void NewRpgBaseAction::WhisperStatusIfChanged(NewRpgStatus oldStatus)
         {
             auto* dataPtr = std::get_if<NewRpgInfo::DoQuest>(&botAI->rpgInfo.data);
             if (dataPtr && dataPtr->quest)
-                msg = "去做任务了——" + std::string(dataPtr->quest->GetTitle());
+            {
+                uint32 questId = dataPtr->quest->GetQuestId();
+                LocaleConstant locale = bot->GetSession()->GetSessionDbLocaleIndex();
+                std::string questTitle;
+                if (QuestLocale const* questLocale = sObjectMgr->GetQuestLocale(questId))
+                    if (locale < questLocale->Title.size() && !questLocale->Title[locale].empty())
+                        questTitle = questLocale->Title[locale];
+                if (questTitle.empty())
+                    questTitle = dataPtr->quest->GetTitle();
+                msg = "去做任务了——" + questTitle;
+            }
             else
                 msg = "去做任务了。";
             break;
