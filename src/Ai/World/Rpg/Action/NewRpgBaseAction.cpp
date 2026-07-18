@@ -1534,32 +1534,71 @@ void NewRpgBaseAction::HeartbeatWhisper()
                 if (questTitle.empty())
                     questTitle = dataPtr->quest->GetTitle();
 
-                // 用 find() 代替 at()，防止 quest 已移除时崩溃
-                uint32 pendingCount = 0;
+                // 逐项列出未完成目标的进度，替代 pendingCount 统计
+                std::vector<std::string> pendingObjs;
                 auto it = bot->getQuestStatusMap().find(questId);
                 if (it != bot->getQuestStatusMap().end())
                 {
                     const QuestStatusData& q_status = it->second;
+
+                    // NPC/GO 击杀/交互目标
                     for (int i = 0; i < QUEST_OBJECTIVES_COUNT; i++)
                     {
-                        if (uint32 npcOrGo = dataPtr->quest->RequiredNpcOrGo[i])
-                            if (q_status.CreatureOrGOCount[i] < dataPtr->quest->RequiredNpcOrGoCount[i])
-                                pendingCount++;
+                        uint32 npcOrGo = dataPtr->quest->RequiredNpcOrGo[i];
+                        if (!npcOrGo) continue;
+
+                        uint32 required = dataPtr->quest->RequiredNpcOrGoCount[i];
+                        uint32 current = q_status.CreatureOrGOCount[i];
+                        if (current >= required) continue;
+
+                        std::string objName;
+                        if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(npcOrGo))
+                        {
+                            objName = ct->Name;
+                            if (CreatureLocale const* cl = sObjectMgr->GetCreatureLocale(npcOrGo))
+                                if (locale < cl->Name.size() && !cl->Name[locale].empty())
+                                    objName = cl->Name[locale];
+                        }
+                        else if (GameObjectTemplate const* gt = sObjectMgr->GetGameObjectTemplate(npcOrGo))
+                        {
+                            objName = gt->name;
+                        }
+                        if (objName.empty()) objName = "目标";
+
+                        pendingObjs.push_back(objName + " " + std::to_string(current) + "/" + std::to_string(required));
                     }
+
+                    // 物品收集目标
                     for (int i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; i++)
                     {
-                        if (uint32 itemId = dataPtr->quest->RequiredItemId[i])
-                            if (q_status.ItemCount[i] < dataPtr->quest->RequiredItemCount[i])
-                                pendingCount++;
+                        uint32 itemId = dataPtr->quest->RequiredItemId[i];
+                        if (!itemId) continue;
+
+                        uint32 required = dataPtr->quest->RequiredItemCount[i];
+                        uint32 current = q_status.ItemCount[i];
+                        if (current >= required) continue;
+
+                        std::string objName;
+                        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId))
+                            objName = proto->Name1;
+                        if (objName.empty()) objName = "物品";
+
+                        pendingObjs.push_back(objName + " " + std::to_string(current) + "/" + std::to_string(required));
                     }
                 }
 
-                if (pendingCount == 0)
+                if (pendingObjs.empty())
                     msg = "还在做任务「" + questTitle + "」，所有目标已完成，回去找「" + GetQuestEnderName(questId, locale) + "」交任务吧！";
-                else if (pendingCount == 1)
-                    msg = "还在做任务「" + questTitle + "」，还有 1 个子任务未完成。";
                 else
-                    msg = "还在做任务「" + questTitle + "」，还有 " + std::to_string(pendingCount) + " 个子任务未完成。";
+                {
+                    std::string details;
+                    for (size_t i = 0; i < pendingObjs.size(); i++)
+                    {
+                        if (i > 0) details += "，";
+                        details += pendingObjs[i];
+                    }
+                    msg = "还在做任务「" + questTitle + "」：" + details;
+                }
             }
             else
                 msg = "还在做任务...";
