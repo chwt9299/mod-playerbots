@@ -77,6 +77,10 @@ protected:
     // Whisper state
     NewRpgStatus _lastWhisperedStatus = RPG_STATUS_END;
     inline static uint32 _lastActionWhisperTime = 0;
+
+    // Heartbeat
+    uint32 _lastHeartbeatTime = 0;
+    void HeartbeatWhisper();
 };
 
 #endif
