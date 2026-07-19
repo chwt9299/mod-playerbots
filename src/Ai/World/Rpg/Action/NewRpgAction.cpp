@@ -11,6 +11,7 @@
 #include "GameObject.h"
 #include "GossipDef.h"
 #include "GridNotifiers.h"
+#include "NearestGameObjects.h"
 #include "GridNotifiersImpl.h"
 #include "IVMapMgr.h"
 #include "NewRpgInfo.h"
