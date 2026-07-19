@@ -1354,8 +1354,9 @@ void NewRpgBaseAction::DoActionWhisper(std::string const& text)
 // 根据 questId 反向查找交任务 NPC 的本地化名称
 static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
 {
-    QuestRelations const* relations = sObjectMgr->GetCreatureQuestInvolvedRelationMap();
-    for (auto const& [creature_entry, qId] : *relations)
+    // Check creature relations first
+    QuestRelations const* creatureRelations = sObjectMgr->GetCreatureQuestInvolvedRelationMap();
+    for (auto const& [creature_entry, qId] : *creatureRelations)
     {
         if (qId == questId)
         {
@@ -1364,6 +1365,20 @@ static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
                     return creatureLocale->Name[locale];
             if (CreatureTemplate const* ct = sObjectMgr->GetCreatureTemplate(creature_entry))
                 return ct->Name;
+            break;
+        }
+    }
+    // Fallback: check GO quest-involved relations
+    QuestRelations const* goRelations = sObjectMgr->GetGameObjectQuestInvolvedRelationMap();
+    for (auto const& [go_entry, qId] : *goRelations)
+    {
+        if (qId == questId)
+        {
+            if (GameObjectLocale const* goLocale = sObjectMgr->GetGameObjectLocale(go_entry))
+                if (locale < goLocale->Name.size() && !goLocale->Name[locale].empty())
+                    return goLocale->Name[locale];
+            if (GameObjectTemplate const* gt = sObjectMgr->GetGameObjectTemplate(go_entry))
+                return gt->name;
             break;
         }
     }
@@ -1475,10 +1490,6 @@ void NewRpgBaseAction::HeartbeatWhisper()
 {
     if (!botAI->GetMaster())
         return;
-    uint32 now = getMSTime();
-    if (now - _lastHeartbeatTime < 30 * 1000)  // 30 秒
-        return;
-    _lastHeartbeatTime = now;
 
     NewRpgStatus status = botAI->rpgInfo.GetStatus();
     std::string msg;
@@ -1562,6 +1573,9 @@ void NewRpgBaseAction::HeartbeatWhisper()
                         else if (GameObjectTemplate const* gt = sObjectMgr->GetGameObjectTemplate(npcOrGo))
                         {
                             objName = gt->name;
+                            if (GameObjectLocale const* gl = sObjectMgr->GetGameObjectLocale(npcOrGo))
+                                if (locale < gl->Name.size() && !gl->Name[locale].empty())
+                                    objName = gl->Name[locale];
                         }
                         if (objName.empty()) objName = "目标";
 
@@ -1580,7 +1594,12 @@ void NewRpgBaseAction::HeartbeatWhisper()
 
                         std::string objName;
                         if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId))
+                        {
                             objName = proto->Name1;
+                            if (ItemLocale const* il = sObjectMgr->GetItemLocale(itemId))
+                                if (locale < il->Name.size() && !il->Name[locale].empty())
+                                    objName = il->Name[locale];
+                        }
                         if (objName.empty()) objName = "物品";
 
                         pendingObjs.push_back(objName + " " + std::to_string(current) + "/" + std::to_string(required));
@@ -1636,5 +1655,15 @@ void NewRpgBaseAction::HeartbeatWhisper()
         default:
             return;
     }
+
+    // 动态阈值：内容变化即时播报，不变则至少 60s 冷却
+    uint32 now = getMSTime();
+    bool msgChanged = (msg != _lastHeartbeatMsg);
+    if (msgChanged)
+        _lastHeartbeatMsg = msg;
+    else if (now - _lastHeartbeatTime < 60 * 1000)
+        return;
+    _lastHeartbeatTime = now;
+
     bot->Say(msg, LANG_UNIVERSAL);
 }

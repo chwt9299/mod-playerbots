@@ -31,6 +31,7 @@ struct NewRpgInfo
     {
         ObjectGuid npcOrGo{};
         uint32 lastReach{0};
+        uint32 failedReachAttempts{0};
     };
     // RPG_WANDER_RANDOM
     struct WanderRandom

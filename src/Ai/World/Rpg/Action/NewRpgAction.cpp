@@ -248,6 +248,7 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
         }
         data.npcOrGo = npcOrGo;
         data.lastReach = 0;
+        data.failedReachAttempts = 0;
         DoActionWhisper("看到个有趣的 NPC，过去瞧瞧。");
         return true;
     }
@@ -275,6 +276,14 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
         if (MoveWorldObjectTo(data.npcOrGo))
             return true;
         // NPC pathing failed (random offset in a wall, mmap hiccup, etc).
+        // Consecutive failures mean the NPC is unreachable; abandon it and
+        // let the next tick pick a new target.
+        if (++data.failedReachAttempts >= 3)
+        {
+            data.npcOrGo = ObjectGuid();
+            data.failedReachAttempts = 0;
+            return true;
+        }
         // Take a small random step so the next tick retries from a
         // different spot instead of staring at the NPC from afar.
         return MoveRandomNear(15.0f);
@@ -320,7 +329,15 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         int32 currentObjective = data.objectiveIdx;
         // check if the objective has completed
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-        const QuestStatusData& q_status = bot->getQuestStatusMap().at(questId);
+        auto qMapIt = bot->getQuestStatusMap().find(questId);
+        if (qMapIt == bot->getQuestStatusMap().end())
+        {
+            LOG_INFO("playerbots", "DoIncompleteQuest: quest {} not in status map for {}, switching to idle",
+                     questId, bot->GetName().c_str());
+            botAI->rpgInfo.ChangeToIdle();
+            return false;
+        }
+        const QuestStatusData& q_status = qMapIt->second;
         bool completed = true;
         if (currentObjective < QUEST_OBJECTIVES_COUNT)
         {
@@ -481,7 +498,15 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         int32 currentObjective = data.objectiveIdx;
         // check if the objective has progression
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-        const QuestStatusData& q_status = bot->getQuestStatusMap().at(questId);
+        auto qMapIt2 = bot->getQuestStatusMap().find(questId);
+        if (qMapIt2 == bot->getQuestStatusMap().end())
+        {
+            LOG_INFO("playerbots", "DoIncompleteQuest(POI): quest {} not in status map for {}, switching to idle",
+                     questId, bot->GetName().c_str());
+            botAI->rpgInfo.ChangeToIdle();
+            return false;
+        }
+        const QuestStatusData& q_status = qMapIt2->second;
         if (currentObjective < QUEST_OBJECTIVES_COUNT)
         {
             if (q_status.CreatureOrGOCount[currentObjective] != 0 && quest->RequiredNpcOrGoCount[currentObjective])

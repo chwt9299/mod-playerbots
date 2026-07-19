@@ -158,7 +158,7 @@ bool CombatStuckTrigger::IsActive()
     MemoryCalculatedValue<bool>* combatVal =
         dynamic_cast<MemoryCalculatedValue<bool>*>(context->GetUntypedValue("combat::self target"));
 
-    if (combatVal->LastChangeDelay() > 5 * MINUTE)
+    if (combatVal->LastChangeDelay() > MINUTE)
     {
         // LOG_INFO("playerbots", "Bot {} {}:{} <{}> was in combat for {} seconds",
         // bot->GetGUID().ToString().c_str(), bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(),

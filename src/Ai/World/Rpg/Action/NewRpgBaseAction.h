@@ -80,6 +80,7 @@ protected:
 
     // Heartbeat
     uint32 _lastHeartbeatTime = 0;
+    std::string _lastHeartbeatMsg;
     void HeartbeatWhisper();
 };
 
