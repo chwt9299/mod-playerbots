@@ -72,6 +72,10 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
         return false;
     }
 
+    // Cooldown after a failed attack attempt to prevent core-level error spam
+    if (_lastAttackFailTime && getMSTimeDiff(_lastAttackFailTime, getMSTime()) < ATTACK_FAIL_COOLDOWN)
+        return false;
+
     if (!target->IsInWorld())
     {
         if (verbose)
@@ -205,7 +209,21 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
         // Final safety gate: re-check LOS immediately before calling core Attack()
         // Target may have moved out of LOS between initial checks (top of function) and now
         if (bot->IsWithinLOSInMap(target))
+        {
+            // Distance pre-check: prevent core Attack() from firing system errors
+            // like "Target is too far away" when target is clearly out of range
+            if (shouldMelee && !bot->IsWithinMeleeRange(target))
+            {
+                _lastAttackFailTime = getMSTime();
+                return false;
+            }
             bot->Attack(target, shouldMelee);
+        }
+        else
+        {
+            _lastAttackFailTime = getMSTime();
+            return false;
+        }
     }
     /* prevent pet dead immediately in group */
     // if (bot->GetMap()->IsDungeon() && bot->GetGroup() && !target->IsInCombat())

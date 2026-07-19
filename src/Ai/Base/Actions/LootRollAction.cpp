@@ -68,8 +68,8 @@ bool LootRollAction::Execute(Event /*event*/)
                         vote = NEED;
                     else if (usage != ITEM_USAGE_NONE)
                         vote = GREED;
-                    else if (proto->Quality >= ITEM_QUALITY_RARE && proto->Bonding != BIND_WHEN_PICKED_UP)
-                        vote = GREED;  // BoE rare+ gear - always worth a greed roll, never pass
+                    else if (proto->Quality >= ITEM_QUALITY_RARE)
+                        vote = GREED;  // Rare+ gear - always worth a greed roll, never pass
                     break;
                 case ITEM_CLASS_RECIPE:
                     if (!sPlayerbotAIConfig.lootRollRecipe)
@@ -80,8 +80,9 @@ bool LootRollAction::Execute(Event /*event*/)
                         vote = GREED;  // BoE recipe bot can't learn - GREED for AH/trade
                     break;
                 default:
-                    if (StoreLootAction::IsLootAllowed(itemId, botAI))
-                        vote = CalculateRollVote(proto, usage);
+                    vote = CalculateRollVote(proto, usage);
+                    if (vote == PASS && proto->Quality >= ITEM_QUALITY_RARE)
+                        vote = GREED;  // Rare+ items should never be fully passed
                     break;
             }
         }

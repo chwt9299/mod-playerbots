@@ -361,7 +361,7 @@ public:
 class NoTargetTrigger : public Trigger
 {
 public:
-    NoTargetTrigger(PlayerbotAI* botAI) : Trigger(botAI, "no target") {}
+    NoTargetTrigger(PlayerbotAI* botAI) : Trigger(botAI, "no target", 5) {}
 
     bool IsActive() override;
 };
