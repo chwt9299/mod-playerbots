@@ -211,8 +211,11 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
         if (bot->IsWithinLOSInMap(target))
         {
             // Distance pre-check: prevent core Attack() from firing system errors
-            // like "Target is too far away" when target is clearly out of range
-            if (shouldMelee && !bot->IsWithinMeleeRange(target))
+            // like "Target is too far away" when target is out of range
+            // Covers both melee (~5yd) and ranged (~40yd)
+            float dist = bot->GetDistance(target);
+            float maxRange = shouldMelee ? 5.0f : 40.0f;
+            if (dist > maxRange)
             {
                 _lastAttackFailTime = getMSTime();
                 return false;

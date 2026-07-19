@@ -23,7 +23,7 @@ protected:
 
 private:
     uint32 _lastAttackFailTime = 0;
-    static constexpr uint32 ATTACK_FAIL_COOLDOWN = 3000;
+    static constexpr uint32 ATTACK_FAIL_COOLDOWN = 5000;
 };
 
 class AttackMyTargetAction : public AttackAction
