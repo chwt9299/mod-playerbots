@@ -147,6 +147,28 @@ void ChooseTravelTargetAction::getNewTarget(TravelTarget* newTarget, TravelTarge
         }
     }
 
+    // §9.20 Plan C: When actively doing a quest with incomplete objectives, don't
+    // randomly switch to a new quest NPC. Let the RPG system drive quest progress.
+    if (!foundTarget && botAI->rpgInfo.GetStatus() == NewRpgStatus::RPG_DO_QUEST)
+    {
+        bool hasPendingQuests = false;
+        for (auto const& [qId, qStatus] : bot->getQuestStatusMap())
+        {
+            if (qStatus.Status == QUEST_STATUS_INCOMPLETE)
+            {
+                hasPendingQuests = true;
+                break;
+            }
+        }
+        if (hasPendingQuests)
+        {
+            // Stuck at depleted NPC while quests are still in-progress.
+            // Idle — the new rpg do quest action handles POI movement.
+            SetNullTarget(newTarget);
+            foundTarget = true;
+        }
+    }
+
     //Do quests (start, do, end) 95% chance
     if (!foundTarget && urand(1, 100) > 5)
     {
