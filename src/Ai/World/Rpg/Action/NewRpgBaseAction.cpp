@@ -1476,7 +1476,7 @@ void NewRpgBaseAction::HeartbeatWhisper()
     if (!botAI->GetMaster())
         return;
     uint32 now = getMSTime();
-    if (now - _lastHeartbeatTime < 10 * 1000)  // 10 秒
+    if (now - _lastHeartbeatTime < 30 * 1000)  // 30 秒
         return;
     _lastHeartbeatTime = now;
 
