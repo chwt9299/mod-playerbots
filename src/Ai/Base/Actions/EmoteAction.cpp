@@ -1254,8 +1254,8 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
             EscapeFmt(bot->GetName()), EscapeFmt(srcName), emote, EscapeFmt(chosen));
     }
 
-    // textEmote 抑制：verbal 已输出自然语言 → 不发黄色系统通知
-    if (verbal && !chosen.empty())
+    // textEmote 抑制：verbal 已输出自然语言 → 不发黄色系统通知（无聊天输出时保持沉默好过刷通用黄字）
+    if (verbal)
         textEmote = 0;
 
     if (textEmote)
