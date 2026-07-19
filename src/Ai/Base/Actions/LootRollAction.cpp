@@ -68,6 +68,8 @@ bool LootRollAction::Execute(Event /*event*/)
                         vote = NEED;
                     else if (usage != ITEM_USAGE_NONE)
                         vote = GREED;
+                    else if (proto->Quality >= ITEM_QUALITY_RARE && proto->Bonding != BIND_WHEN_PICKED_UP)
+                        vote = GREED;  // BoE rare+ gear - always worth a greed roll, never pass
                     break;
                 case ITEM_CLASS_RECIPE:
                     if (!sPlayerbotAIConfig.lootRollRecipe)

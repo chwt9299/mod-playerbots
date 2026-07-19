@@ -201,7 +201,12 @@ bool AttackAction::Attack(Unit* target, bool /*with_pet*/ /*true*/)
     botAI->ChangeEngine(BOT_STATE_COMBAT);
 
     if (!WaitForAttackStrategy::ShouldWait(botAI))
-        bot->Attack(target, shouldMelee);
+    {
+        // Final safety gate: re-check LOS immediately before calling core Attack()
+        // Target may have moved out of LOS between initial checks (top of function) and now
+        if (bot->IsWithinLOSInMap(target))
+            bot->Attack(target, shouldMelee);
+    }
     /* prevent pet dead immediately in group */
     // if (bot->GetMap()->IsDungeon() && bot->GetGroup() && !target->IsInCombat())
     // {
