@@ -1563,7 +1563,12 @@ void TravelTarget::setStatus(TravelStatus status)
             statusTime = getMaxTravelTime() * 2 + sPlayerbotAIConfig.maxWaitForMove;
             break;
         case TRAVEL_STATUS_WORK:
-            statusTime = tDestination->getExpireDelay();
+            if (tDestination &&
+                (tDestination->getName() == "QuestRelationTravelDestination" ||
+                 tDestination->getName() == "QuestObjectiveTravelDestination"))
+                statusTime = 30 * IN_MILLISECONDS;   // Quest NPC: 30s interaction window
+            else
+                statusTime = tDestination->getExpireDelay();  // Default 5s
             break;
         case TRAVEL_STATUS_COOLDOWN:
             statusTime = tDestination->getCooldownDelay();
