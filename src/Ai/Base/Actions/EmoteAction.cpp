@@ -1370,7 +1370,7 @@ bool EmoteAction::Execute(Event event)
     }
 
     if (emote)
-        return ReceiveEmote(pSource, emote, bot->InBattleground() ? false : (urand(0, 9) >= 3));
+        return ReceiveEmote(pSource, emote, bot->InBattleground() ? false : (urand(0, 19) >= 1));
 
     if (param.find("sound") == 0)
     {
