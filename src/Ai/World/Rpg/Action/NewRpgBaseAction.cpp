@@ -1369,7 +1369,7 @@ static std::string GetQuestEnderName(uint32 questId, LocaleConstant locale)
         }
     }
     // Fallback: check GO quest-involved relations
-    QuestRelations const* goRelations = sObjectMgr->GetGameObjectQuestInvolvedRelationMap();
+    QuestRelations const* goRelations = sObjectMgr->GetGOQuestInvolvedRelationMap();
     for (auto const& [go_entry, qId] : *goRelations)
     {
         if (qId == questId)
