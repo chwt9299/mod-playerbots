@@ -96,6 +96,13 @@ bool LootRollAction::Execute(Event /*event*/)
         else if (vote == GREED && !sPlayerbotAIConfig.lootGreedRollLevel)
             vote = PASS;
 
+        // Safety net: never fully pass on anything above poor (grey) quality.
+        // Even junk white items or unknown misc items should at least be greed-rolled.
+        // This prevents config misconfiguration (e.g. lootGreedRollLevel=false) or
+        // edge-case ITEM_USAGE_NONE paths from silently passing on perfectly rollable loot.
+        if (vote == PASS && proto->Quality > ITEM_QUALITY_POOR)
+            vote = GREED;
+
         switch (group->GetLootMethod())
         {
             case MASTER_LOOT:
