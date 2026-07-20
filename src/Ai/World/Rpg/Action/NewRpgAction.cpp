@@ -275,6 +275,12 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
     {
         if (MoveWorldObjectTo(data.npcOrGo))
             return true;
+        // If the move was rejected because we're still waiting for the last
+        // movement to finish (throttle), don't count it as a failed reach
+        // attempt. Throttle is not a pathing failure — the bot just hasn't
+        // started the next move yet.
+        if (IsWaitingForLastMove(MovementPriority::MOVEMENT_NORMAL))
+            return false;
         // NPC pathing failed (random offset in a wall, mmap hiccup, etc).
         // Consecutive failures mean the NPC is unreachable; abandon it and
         // let the next tick pick a new target.

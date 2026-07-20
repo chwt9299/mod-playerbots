@@ -82,7 +82,7 @@ public:
     NewRpgWanderNpcAction(PlayerbotAI* botAI) : NewRpgBaseAction(botAI, "new rpg move npcs") {}
     bool Execute(Event event) override;
 
-    const uint32 npcStayTime = 8 * 1000;
+    const uint32 npcStayTime = 20 * 1000;
 };
 
 class NewRpgDoQuestAction : public NewRpgBaseAction
